@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="color-scheme" content="light dark" />
+  <title>ReadRad — Focus Lens Reading</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Literata:opsz,wght@7..72,400;7..72,500;7..72,600;7..72,700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css?v=7" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%230a0a0b'/%3E%3Ccircle cx='16' cy='16' r='7.5' fill='none' stroke='%236eb5ff' stroke-width='2'/%3E%3Ccircle cx='16' cy='16' r='2.5' fill='%236eb5ff'/%3E%3C/svg%3E" />
+  <script>
+    (function () {
+      try {
+        var t = localStorage.getItem("readrad-theme");
+        if (!t) t = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        document.documentElement.setAttribute("data-theme", t);
+      } catch (e) {
+        document.documentElement.setAttribute("data-theme", "dark");
+      }
+    })();
+  </script>
+</head>
+<body>
+  <div class="atmosphere" aria-hidden="true">
+    <div class="atmosphere__glow"></div>
+    <div class="atmosphere__grid"></div>
+  </div>
+
+  <button type="button" class="theme-toggle" id="themeToggle" title="Toggle theme" aria-label="Toggle dark mode">
+    <svg class="theme-toggle__sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
+      <circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+    </svg>
+    <svg class="theme-toggle__moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
+      <path d="M21 14.5A8.5 8.5 0 1 1 9.5 3a7 7 0 0 0 11.5 11.5z"/>
+    </svg>
+  </button>
+
+  <!-- Landing -->
+  <section id="landing" class="landing" data-screen="landing">
+    <header class="landing__brand">
+      <div class="logo" aria-hidden="true">
+        <span class="logo__ring"></span>
+        <span class="logo__core"></span>
+      </div>
+      <h1 class="brand">ReadRad</h1>
+      <p class="tagline">Keep your eyes still. Let the page move through the lens.</p>
+    </header>
+
+    <div class="landing__stage">
+      <div class="demo-lens" aria-hidden="true">
+        <div class="demo-lens__rim"></div>
+        <div class="demo-lens__glass">
+          <span class="demo-lens__word" id="demoWord">focus</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="landing__actions glass-panel">
+      <label class="field">
+        <span class="field__label">Paste something to read</span>
+        <textarea
+          id="textInput"
+          class="field__textarea"
+          rows="5"
+          placeholder="Drop a chapter, article, email, or notes here…"
+          spellcheck="false"
+        ></textarea>
+      </label>
+
+      <div class="landing__row">
+        <label class="btn btn--ghost file-btn">
+          <input type="file" id="fileInput" accept=".txt,.md,.text,text/plain" hidden />
+          <span>Upload</span>
+        </label>
+        <button type="button" class="btn btn--ghost" id="sampleBtn">Sample</button>
+        <button type="button" class="btn btn--primary" id="startBtn" disabled>Enter lens</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Reader -->
+  <section id="reader" class="reader" data-screen="reader" hidden>
+    <header class="reader__top">
+      <button type="button" class="icon-btn" id="exitBtn" title="Back (Esc)" aria-label="Exit reader">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+      </button>
+      <div class="reader__meta">
+        <span class="brand brand--sm">ReadRad</span>
+        <span class="pill-meta" id="progressLabel">0%</span>
+      </div>
+      <button type="button" class="icon-btn" id="settingsToggle" title="Settings" aria-label="Toggle settings">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+      </button>
+    </header>
+
+    <div class="reader__viewport" id="viewport">
+      <div class="page-plane" id="pagePlane">
+        <article class="page" id="page"></article>
+      </div>
+
+      <div class="lens" id="lens">
+        <div class="lens__rim"></div>
+        <div class="lens__clip">
+          <div class="page-plane page-plane--zoom" id="zoomPlane">
+            <article class="page page--zoom" id="pageZoom"></article>
+          </div>
+        </div>
+        <div class="lens__crosshair" aria-hidden="true"></div>
+      </div>
+
+      <p class="reader__hint" id="hint">Press space to begin · Focus on the center</p>
+    </div>
+
+    <div class="reader__dock">
+      <div class="reader__progress">
+        <div class="progress-track" id="progressTrack" role="slider" tabindex="0" aria-label="Reading progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+          <div class="progress-fill" id="progressFill"></div>
+          <div class="progress-thumb" id="progressThumb"></div>
+        </div>
+      </div>
+
+      <footer class="reader__controls">
+        <button type="button" class="ctrl" id="restartBtn" title="Restart" aria-label="Restart">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
+        </button>
+        <button type="button" class="ctrl ctrl--play" id="playBtn" title="Play / Pause (Space)" aria-label="Play" aria-pressed="false">
+          <svg class="icon-play" width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72l-11-6.86a1 1 0 0 0-1.5.86z"/></svg>
+          <svg class="icon-pause" width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>
+        </button>
+        <div class="speed">
+          <label for="wpmRange" class="speed__label">WPM</label>
+          <input type="range" id="wpmRange" min="30" max="300" step="5" value="130" />
+          <span class="speed__value" id="wpmValue">130</span>
+        </div>
+        <div class="speed speed--distance">
+          <label for="distanceRange" class="speed__label">Lens</label>
+          <input type="range" id="distanceRange" min="1" max="4" step="1" value="1" />
+          <span class="speed__value" id="distanceValue">1</span>
+        </div>
+      </footer>
+    </div>
+
+    <aside class="settings" id="settingsPanel" hidden>
+      <div class="settings__handle" aria-hidden="true"></div>
+      <h2 class="settings__title">Settings</h2>
+
+      <label class="settings__row settings__row--stack">
+        <span class="settings__row-top">
+          <span>Lens distance</span>
+          <span class="settings__hint" id="distanceHint">1 word · close</span>
+        </span>
+        <div class="settings__distance">
+          <span class="settings__end">Closer</span>
+          <input type="range" id="distanceRangeSettings" min="1" max="4" step="1" value="1" />
+          <span class="settings__end">Farther</span>
+        </div>
+      </label>
+
+      <label class="settings__row">
+        <span>Reading pace</span>
+        <select id="pacingSelect">
+          <option value="human" selected>Human</option>
+          <option value="syllables">Syllables</option>
+          <option value="length">Word length</option>
+          <option value="hybrid">Hybrid</option>
+          <option value="natural">Natural</option>
+          <option value="even">Even</option>
+        </select>
+      </label>
+
+      <label class="settings__row">
+        <span>Font size</span>
+        <div class="settings__inline">
+          <input type="range" id="fontSizeRange" min="80" max="160" step="5" value="100" />
+          <span class="settings__hint" id="fontSizeValue">100%</span>
+        </div>
+      </label>
+      <label class="settings__row">
+        <span>Zoom fine-tune</span>
+        <input type="range" id="magRange" min="85" max="125" step="5" value="100" />
+      </label>
+      <label class="settings__row">
+        <span>Lens size</span>
+        <input type="range" id="lensSize" min="70" max="130" value="100" />
+      </label>
+      <label class="settings__row">
+        <span>Highlight focus</span>
+        <input type="checkbox" id="orpToggle" class="ios-switch" checked />
+      </label>
+      <label class="settings__row">
+        <span>Appearance</span>
+        <button type="button" class="btn btn--ghost btn--sm" id="themeToggleSettings">Toggle theme</button>
+      </label>
+
+      <div class="settings__row settings__row--stack">
+        <span class="settings__row-top">
+          <span>Your pace</span>
+          <span class="settings__hint" id="calibrateHint">WPM slider · or calibrate</span>
+        </span>
+        <div class="settings__calibrate">
+          <button type="button" class="btn btn--ghost btn--sm" id="paceSlowerBtn" title="Feel slower">Too fast</button>
+          <button type="button" class="btn btn--ghost btn--sm" id="calibrateBtn">Calibrate</button>
+          <button type="button" class="btn btn--ghost btn--sm" id="paceFasterBtn" title="Feel faster">Too slow</button>
+        </div>
+      </div>
+
+      <button type="button" class="btn btn--primary settings__close" id="settingsClose">Done</button>
+    </aside>
+  </section>
+
+  <script src="js/app.js?v=7"></script>
+</body>
+</html>
