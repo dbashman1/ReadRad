@@ -129,8 +129,12 @@
       }
       const words = splitWords(phrase);
       if (!words.length) continue;
-      const layout = cycle[layoutIdx % cycle.length];
+      let layout = cycle[layoutIdx % cycle.length];
       layoutIdx += 1;
+      // Long lines as monument read like a title + caption — use billboard instead
+      if (layout === "monument" && words.length > 7) layout = "billboard";
+      if (layout === "riseColumn" && words.length > 8) layout = "billboard";
+      if (layout === "scatterLock" && words.length > 6) layout = "orbitDrift";
       scenes.push({
         text: phrase,
         words,
