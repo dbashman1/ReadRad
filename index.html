@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Instrument+Sans:wght@400;500;600;700&family=Literata:opsz,wght@7..72,400;7..72,500;7..72,600;7..72,700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/styles.css?v=8" />
+  <link rel="stylesheet" href="css/styles.css?v=9" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%230a0a0b'/%3E%3Ccircle cx='16' cy='16' r='7.5' fill='none' stroke='%236eb5ff' stroke-width='2'/%3E%3Ccircle cx='16' cy='16' r='2.5' fill='%236eb5ff'/%3E%3C/svg%3E" />
   <script>
     (function () {
@@ -119,7 +119,14 @@
       </div>
 
       <div class="kinetic-stage" id="kineticStage" hidden>
-        <div class="kinetic-line" id="kineticLine" aria-live="polite"></div>
+        <div class="kinetic-fx" aria-hidden="true">
+          <div class="kinetic-fx__grain"></div>
+          <div class="kinetic-fx__vignette"></div>
+          <div class="kinetic-fx__glow"></div>
+        </div>
+        <div class="kinetic-camera" id="kineticCamera">
+          <div class="kinetic-scene" id="kineticLine" aria-live="polite"></div>
+        </div>
       </div>
 
       <p class="reader__hint" id="hint">Press space to begin · Focus on the center</p>
@@ -154,10 +161,10 @@
         <div class="speed speed--style" id="kineticDockControl" hidden>
           <label for="kineticStyleSelect" class="speed__label">Style</label>
           <select id="kineticStyleSelect" class="dock-select" aria-label="Kinetic style">
-            <option value="smooth-reveal" selected>Reveal</option>
-            <option value="highlight-sweep">Sweep</option>
-            <option value="cinematic-emphasis">Emphasis</option>
-            <option value="floating-drift">Drift</option>
+            <option value="smooth-reveal" selected>Monument</option>
+            <option value="highlight-sweep">Blade</option>
+            <option value="cinematic-emphasis">Focus</option>
+            <option value="floating-drift">Orbit</option>
           </select>
         </div>
       </footer>
@@ -182,10 +189,10 @@
       <label class="settings__row settings__kinetic-only" hidden>
         <span>Kinetic style</span>
         <select id="kineticStyleSettings">
-          <option value="smooth-reveal" selected>Smooth reveal</option>
-          <option value="highlight-sweep">Highlight sweep</option>
-          <option value="cinematic-emphasis">Cinematic emphasis</option>
-          <option value="floating-drift">Floating drift</option>
+          <option value="smooth-reveal" selected>Monument · billboard · column</option>
+          <option value="highlight-sweep">Blade wipe · cut emphasis</option>
+          <option value="cinematic-emphasis">Focus pulse · counterweight</option>
+          <option value="floating-drift">Orbit · scatter lock</option>
         </select>
       </label>
 
@@ -241,7 +248,7 @@
     </aside>
   </section>
 
-  <script src="js/kinetic.js?v=8"></script>
-  <script src="js/app.js?v=8"></script>
+  <script src="js/kinetic.js?v=9"></script>
+  <script src="js/app.js?v=9"></script>
 </body>
 </html>
