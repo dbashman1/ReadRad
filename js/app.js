@@ -71,9 +71,27 @@ Try this with an article you have been putting off, a chapter you want to finish
     paceSlowerBtn: document.getElementById("paceSlowerBtn"),
     paceFasterBtn: document.getElementById("paceFasterBtn"),
     demoWord: document.getElementById("demoWord"),
+    landingTagline: document.getElementById("landingTagline"),
+    modeLens: document.getElementById("modeLens"),
+    modeKinetic: document.getElementById("modeKinetic"),
+    demoLens: document.getElementById("demoLens"),
+    demoKinetic: document.getElementById("demoKinetic"),
+    kineticStage: document.getElementById("kineticStage"),
+    kineticLine: document.getElementById("kineticLine"),
+    lensDockControl: document.getElementById("lensDockControl"),
+    kineticDockControl: document.getElementById("kineticDockControl"),
+    kineticStyleSelect: document.getElementById("kineticStyleSelect"),
+    kineticStyleSettings: document.getElementById("kineticStyleSettings"),
   };
 
+  const kineticPlayer =
+    els.kineticLine && window.ReadRadKinetic
+      ? window.ReadRadKinetic.createPlayer(els.kineticLine)
+      : null;
+
   const state = {
+    mode: "lens",
+    kineticPreset: "smooth-reveal",
     words: [],
     syllables: [],
     letters: [],
@@ -734,7 +752,7 @@ Try this with an article you have been putting off, a chapter you want to finish
     els.playBtn.classList.toggle("is-playing", playing);
     els.playBtn.setAttribute("aria-pressed", playing ? "true" : "false");
     els.playBtn.setAttribute("aria-label", playing ? "Pause" : "Play");
-    els.lens.classList.toggle("is-playing", playing);
+    if (state.mode === "lens") els.lens.classList.toggle("is-playing", playing);
     if (playing && state.started) els.hint.classList.add("is-faded");
   }
 
@@ -744,6 +762,56 @@ Try this with an article you have been putting off, a chapter you want to finish
     els.hint.textContent = "Done — press restart or scrub back";
     els.hint.classList.remove("is-faded");
     updateProgress();
+  }
+
+  function applyModeChrome() {
+    const kinetic = state.mode === "kinetic";
+    document.body.dataset.appMode = state.mode;
+    els.reader.dataset.mode = state.mode;
+
+    els.modeLens?.classList.toggle("is-active", !kinetic);
+    els.modeKinetic?.classList.toggle("is-active", kinetic);
+    els.modeLens?.setAttribute("aria-selected", String(!kinetic));
+    els.modeKinetic?.setAttribute("aria-selected", String(kinetic));
+
+    if (els.demoLens) els.demoLens.hidden = kinetic;
+    if (els.demoKinetic) els.demoKinetic.hidden = !kinetic;
+    if (els.landingTagline) {
+      els.landingTagline.textContent = kinetic
+        ? "Cinematic kinetic type — full lines, deliberate motion."
+        : "Keep your eyes still. Let the page move through the lens.";
+    }
+    els.startBtn.textContent = kinetic ? "Enter kinetic" : "Enter lens";
+
+    if (els.lensDockControl) els.lensDockControl.hidden = kinetic;
+    if (els.kineticDockControl) els.kineticDockControl.hidden = !kinetic;
+    if (els.kineticStage) els.kineticStage.hidden = !kinetic;
+
+    document.querySelectorAll(".settings__lens-only").forEach((el) => {
+      el.hidden = kinetic;
+    });
+    document.querySelectorAll(".settings__kinetic-only").forEach((el) => {
+      el.hidden = !kinetic;
+    });
+
+    if (els.kineticStyleSelect) els.kineticStyleSelect.value = state.kineticPreset;
+    if (els.kineticStyleSettings) els.kineticStyleSettings.value = state.kineticPreset;
+  }
+
+  function setMode(mode) {
+    state.mode = mode === "kinetic" ? "kinetic" : "lens";
+    applyModeChrome();
+    if (state.mode === "kinetic" && !els.textInput.value.trim()) {
+      els.textInput.value = SAMPLE;
+      syncStartEnabled();
+    }
+  }
+
+  function setKineticPreset(preset) {
+    state.kineticPreset = preset;
+    if (els.kineticStyleSelect) els.kineticStyleSelect.value = preset;
+    if (els.kineticStyleSettings) els.kineticStyleSettings.value = preset;
+    kineticPlayer?.setPreset(preset);
   }
 
   /**
@@ -797,6 +865,16 @@ Try this with an article you have been putting off, a chapter you want to finish
   }
 
   function play() {
+    if (state.mode === "kinetic") {
+      if (!kineticPlayer || !kineticPlayer.sentenceCount()) return;
+      state.playing = true;
+      state.started = true;
+      setPlayingUI(true);
+      els.hint.classList.add("is-faded");
+      kineticPlayer.play();
+      return;
+    }
+
     if (!state.words.length) return;
     if (state.index >= state.words.length) {
       state.index = 0;
@@ -816,13 +894,17 @@ Try this with an article you have been putting off, a chapter you want to finish
   function stop() {
     state.playing = false;
     setPlayingUI(false);
+    if (state.mode === "kinetic") kineticPlayer?.pause();
   }
 
   function togglePlay() {
     if (state.playing) {
       stop();
-      // A pause during the anticipatory glide would leave the lens on the next group.
-      if (state.motionIndex !== state.index && state.index < state.words.length) {
+      if (
+        state.mode === "lens" &&
+        state.motionIndex !== state.index &&
+        state.index < state.words.length
+      ) {
         centerOn(state.index, { settleMs: 160 });
       }
     } else play();
@@ -832,14 +914,24 @@ Try this with an article you have been putting off, a chapter you want to finish
     stop();
     state.index = 0;
     state.hl = null;
-    els.hint.textContent = "Press space to begin · Keep your gaze on the center";
     els.hint.classList.remove("is-faded");
+    if (state.mode === "kinetic") {
+      els.hint.textContent = "Press space · Kinetic lines advance with your pace";
+      kineticPlayer?.restart();
+      return;
+    }
+    els.hint.textContent = "Press space to begin · Keep your gaze on the center";
     centerOn(0, { instant: true });
   }
 
   function seekTo(index, { resume = false } = {}) {
     const wasPlaying = state.playing;
     stop();
+    if (state.mode === "kinetic") {
+      kineticPlayer?.seek(index);
+      if (resume && wasPlaying) play();
+      return;
+    }
     state.index = snapToChunk(index);
     centerOn(state.index, { instant: true });
     if (resume && wasPlaying) play();
@@ -861,8 +953,8 @@ Try this with an article you have been putting off, a chapter you want to finish
   /* ---------- screens ---------- */
 
   function enterReader(rawText) {
-    mountText(rawText);
-    if (!state.words.length) return;
+    const text = rawText.trim();
+    if (!text) return;
 
     stop();
     els.landing.hidden = true;
@@ -870,11 +962,26 @@ Try this with an article you have been putting off, a chapter you want to finish
     document.body.classList.add("is-reading");
     els.settingsPanel.hidden = true;
     state.started = false;
-    els.hint.textContent = "Press space to begin · Keep your gaze on the center";
+    state.rawText = text;
+    applyModeChrome();
     els.hint.classList.remove("is-faded");
+
+    if (state.mode === "kinetic") {
+      if (!kineticPlayer) return;
+      els.hint.textContent = "Press space · Kinetic lines advance with your pace";
+      kineticPlayer.load(text, {
+        preset: state.kineticPreset,
+        wpm: state.wpm,
+      });
+      return;
+    }
+
+    mountText(text);
+    if (!state.words.length) return;
+
+    els.hint.textContent = "Press space to begin · Keep your gaze on the center";
     applyDistance(state.chunkSize, { recenter: false });
 
-    // Measure only after the reading font has loaded, or word positions drift.
     const fontsReady = document.fonts && document.fonts.ready
       ? document.fonts.ready
       : Promise.resolve();
@@ -889,10 +996,12 @@ Try this with an article you have been putting off, a chapter you want to finish
 
   function exitReader() {
     stop();
+    kineticPlayer?.pause();
     els.reader.hidden = true;
     els.landing.hidden = false;
     document.body.classList.remove("is-reading");
     els.settingsPanel.hidden = true;
+    applyModeChrome();
   }
 
   function syncStartEnabled() {
@@ -903,6 +1012,11 @@ Try this with an article you have been putting off, a chapter you want to finish
     const rect = els.progressTrack.getBoundingClientRect();
     const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
     const wasPlaying = state.playing;
+    if (state.mode === "kinetic") {
+      const total = Math.max(1, kineticPlayer?.sentenceCount() || 1);
+      seekTo(Math.min(total - 1, Math.floor(ratio * total)), { resume: wasPlaying });
+      return;
+    }
     const idx = Math.min(
       state.words.length - 1,
       Math.floor(ratio * state.words.length)
@@ -1068,6 +1182,30 @@ Try this with an article you have been putting off, a chapter you want to finish
 
   els.textInput.addEventListener("input", syncStartEnabled);
 
+  if (kineticPlayer) {
+    kineticPlayer.onProgress(({ percent, index }) => {
+      state.index = index;
+      els.progressLabel.textContent = `${percent}%`;
+      els.progressFill.style.width = `${percent}%`;
+      els.progressThumb.style.left = `${percent}%`;
+      els.progressTrack.setAttribute("aria-valuenow", String(percent));
+    });
+    kineticPlayer.onDone(() => finish());
+  }
+
+  els.modeLens?.addEventListener("click", () => setMode("lens"));
+  els.modeKinetic?.addEventListener("click", () => setMode("kinetic"));
+
+  function onKineticStyleInput(value) {
+    setKineticPreset(value);
+  }
+  els.kineticStyleSelect?.addEventListener("change", () => {
+    onKineticStyleInput(els.kineticStyleSelect.value);
+  });
+  els.kineticStyleSettings?.addEventListener("change", () => {
+    onKineticStyleInput(els.kineticStyleSettings.value);
+  });
+
   els.sampleBtn.addEventListener("click", () => {
     els.textInput.value = SAMPLE;
     syncStartEnabled();
@@ -1091,7 +1229,8 @@ Try this with an article you have been putting off, a chapter you want to finish
     state.wpm = Number(els.wpmRange.value);
     els.wpmValue.textContent = String(state.wpm);
     persistPace();
-    if (state.playing) {
+    kineticPlayer?.setWpm(state.wpm);
+    if (state.mode === "lens" && state.playing) {
       state.nextAt = performance.now() + dwellMs(state.index);
     }
   });
@@ -1192,11 +1331,18 @@ Try this with an article you have been putting off, a chapter you want to finish
   els.progressTrack.addEventListener("keydown", (e) => {
     if (e.key === "ArrowRight") {
       e.preventDefault();
-      seekTo(state.index + chunkLength(state.index));
+      if (state.mode === "kinetic") {
+        seekTo(Math.min((kineticPlayer?.sentenceCount() || 1) - 1, state.index + 1));
+      } else {
+        seekTo(state.index + chunkLength(state.index));
+      }
     } else if (e.key === "ArrowLeft") {
       e.preventDefault();
-      const back = Math.max(1, state.chunkSize);
-      seekTo(state.index - back);
+      if (state.mode === "kinetic") {
+        seekTo(Math.max(0, state.index - 1));
+      } else {
+        seekTo(state.index - Math.max(1, state.chunkSize));
+      }
     }
   });
 
@@ -1237,6 +1383,7 @@ Try this with an article you have been putting off, a chapter you want to finish
   });
 
   // Init defaults
+  applyModeChrome();
   state.wpm = Number(els.wpmRange.value);
   state.magFine = Number(els.magRange.value) / 100;
   state.pacing = els.pacingSelect.value;

@@ -204,8 +204,8 @@ body.is-reading .theme-toggle {
   z-index: 1;
   min-height: 100dvh;
   display: grid;
-  grid-template-rows: auto 1fr auto;
-  gap: 1.25rem;
+  grid-template-rows: auto auto 1fr auto;
+  gap: 1.15rem;
   padding: clamp(1.5rem, 4vw, 3rem);
   padding-top: clamp(3.5rem, 8vw, 4.5rem);
   max-width: 640px;
@@ -1047,11 +1047,172 @@ body.is-reading .theme-toggle {
   }
 }
 
+/* ---------- mode switch + kinetic ---------- */
+
+.mode-switch {
+  display: inline-flex;
+  align-self: center;
+  margin: 0 auto;
+  padding: 4px;
+  gap: 2px;
+  border-radius: 999px;
+  background: var(--glass);
+  border: 1px solid var(--stroke);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.mode-switch__btn {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--text-2);
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  padding: 0.45rem 1.1rem;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.mode-switch__btn.is-active {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+.demo-kinetic {
+  display: grid;
+  place-items: center;
+  min-height: 160px;
+  padding: 1.5rem;
+}
+
+.demo-kinetic__word {
+  font-family: "Instrument Sans", var(--font-ui);
+  font-size: clamp(2rem, 8vw, 2.8rem);
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  color: var(--text);
+  animation: kinetic-demo 2.4s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+
+@keyframes kinetic-demo {
+  0% { opacity: 0; transform: translateY(16px) scale(0.96); filter: blur(6px); }
+  35% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+  75% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+  100% { opacity: 0; transform: translateY(-8px) scale(1.02); filter: blur(2px); }
+}
+
+.reader[data-mode="kinetic"] .page-plane,
+.reader[data-mode="kinetic"] .lens {
+  display: none !important;
+}
+
+.reader[data-mode="lens"] .kinetic-stage {
+  display: none !important;
+}
+
+.kinetic-stage {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 5rem 1.25rem 7.5rem;
+  z-index: 5;
+  background:
+    radial-gradient(ellipse 70% 50% at 50% 42%, color-mix(in srgb, var(--accent) 10%, transparent), transparent 70%);
+  pointer-events: none;
+}
+
+.kinetic-line {
+  width: min(920px, 92vw);
+  text-align: center;
+}
+
+.kinetic-line__inner {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: baseline;
+  column-gap: 0.28em;
+  row-gap: 0.22em;
+  font-family: "Instrument Sans", var(--font-ui);
+  font-size: clamp(1.55rem, 4.6vw, 3.15rem);
+  font-weight: 560;
+  line-height: 1.18;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+
+.kinetic-unit {
+  display: inline-block;
+  position: relative;
+  will-change: transform, opacity, filter;
+  transform-origin: 50% 70%;
+}
+
+.kinetic-unit.is-space {
+  white-space: pre;
+}
+
+.kinetic-unit.is-emphasis {
+  color: color-mix(in srgb, var(--accent) 75%, var(--text));
+}
+
+.kinetic-unit__mark {
+  position: absolute;
+  left: -0.08em;
+  right: -0.08em;
+  top: 0.12em;
+  bottom: 0.08em;
+  border-radius: 0.18em;
+  background: color-mix(in srgb, var(--accent) 28%, transparent);
+  transform: scaleX(0.15);
+  transform-origin: left center;
+  opacity: 0;
+  z-index: 0;
+}
+
+.kinetic-unit__text {
+  position: relative;
+  z-index: 1;
+}
+
+.dock-select {
+  appearance: none;
+  border: 1px solid var(--stroke);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  border-radius: 10px;
+  padding: 0.35rem 0.55rem;
+  max-width: 7.5rem;
+}
+
+.speed--style {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+body.is-reading[data-app-mode="kinetic"] .landing__stage {
+  /* noop — mode lives on reader */
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
+  }
+
+  .demo-kinetic__word {
+    animation: none;
   }
 }

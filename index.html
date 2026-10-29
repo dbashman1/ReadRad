@@ -4,11 +4,11 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="color-scheme" content="light dark" />
-  <title>ReadRad — Focus Lens Reading</title>
+  <title>ReadRad — Lens & Kinetic Reading</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Literata:opsz,wght@7..72,400;7..72,500;7..72,600;7..72,700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/styles.css?v=7" />
+  <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Instrument+Sans:wght@400;500;600;700&family=Literata:opsz,wght@7..72,400;7..72,500;7..72,600;7..72,700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css?v=8" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%230a0a0b'/%3E%3Ccircle cx='16' cy='16' r='7.5' fill='none' stroke='%236eb5ff' stroke-width='2'/%3E%3Ccircle cx='16' cy='16' r='2.5' fill='%236eb5ff'/%3E%3C/svg%3E" />
   <script>
     (function () {
@@ -45,15 +45,23 @@
         <span class="logo__core"></span>
       </div>
       <h1 class="brand">ReadRad</h1>
-      <p class="tagline">Keep your eyes still. Let the page move through the lens.</p>
+      <p class="tagline" id="landingTagline">Keep your eyes still. Let the page move through the lens.</p>
     </header>
 
+    <div class="mode-switch" role="tablist" aria-label="Reading mode">
+      <button type="button" class="mode-switch__btn is-active" role="tab" id="modeLens" data-mode="lens" aria-selected="true">Lens</button>
+      <button type="button" class="mode-switch__btn" role="tab" id="modeKinetic" data-mode="kinetic" aria-selected="false">Kinetic</button>
+    </div>
+
     <div class="landing__stage">
-      <div class="demo-lens" aria-hidden="true">
+      <div class="demo-lens" id="demoLens" aria-hidden="true">
         <div class="demo-lens__rim"></div>
         <div class="demo-lens__glass">
           <span class="demo-lens__word" id="demoWord">focus</span>
         </div>
+      </div>
+      <div class="demo-kinetic" id="demoKinetic" hidden aria-hidden="true">
+        <span class="demo-kinetic__word">motion</span>
       </div>
     </div>
 
@@ -110,6 +118,10 @@
         <div class="lens__crosshair" aria-hidden="true"></div>
       </div>
 
+      <div class="kinetic-stage" id="kineticStage" hidden>
+        <div class="kinetic-line" id="kineticLine" aria-live="polite"></div>
+      </div>
+
       <p class="reader__hint" id="hint">Press space to begin · Focus on the center</p>
     </div>
 
@@ -134,10 +146,19 @@
           <input type="range" id="wpmRange" min="30" max="300" step="5" value="130" />
           <span class="speed__value" id="wpmValue">130</span>
         </div>
-        <div class="speed speed--distance">
+        <div class="speed speed--distance" id="lensDockControl">
           <label for="distanceRange" class="speed__label">Lens</label>
           <input type="range" id="distanceRange" min="1" max="4" step="1" value="1" />
           <span class="speed__value" id="distanceValue">1</span>
+        </div>
+        <div class="speed speed--style" id="kineticDockControl" hidden>
+          <label for="kineticStyleSelect" class="speed__label">Style</label>
+          <select id="kineticStyleSelect" class="dock-select" aria-label="Kinetic style">
+            <option value="smooth-reveal" selected>Reveal</option>
+            <option value="highlight-sweep">Sweep</option>
+            <option value="cinematic-emphasis">Emphasis</option>
+            <option value="floating-drift">Drift</option>
+          </select>
         </div>
       </footer>
     </div>
@@ -146,7 +167,7 @@
       <div class="settings__handle" aria-hidden="true"></div>
       <h2 class="settings__title">Settings</h2>
 
-      <label class="settings__row settings__row--stack">
+      <label class="settings__row settings__lens-only settings__row--stack">
         <span class="settings__row-top">
           <span>Lens distance</span>
           <span class="settings__hint" id="distanceHint">1 word · close</span>
@@ -156,6 +177,16 @@
           <input type="range" id="distanceRangeSettings" min="1" max="4" step="1" value="1" />
           <span class="settings__end">Farther</span>
         </div>
+      </label>
+
+      <label class="settings__row settings__kinetic-only" hidden>
+        <span>Kinetic style</span>
+        <select id="kineticStyleSettings">
+          <option value="smooth-reveal" selected>Smooth reveal</option>
+          <option value="highlight-sweep">Highlight sweep</option>
+          <option value="cinematic-emphasis">Cinematic emphasis</option>
+          <option value="floating-drift">Floating drift</option>
+        </select>
       </label>
 
       <label class="settings__row">
@@ -177,15 +208,15 @@
           <span class="settings__hint" id="fontSizeValue">100%</span>
         </div>
       </label>
-      <label class="settings__row">
+      <label class="settings__row settings__lens-only">
         <span>Zoom fine-tune</span>
         <input type="range" id="magRange" min="85" max="125" step="5" value="100" />
       </label>
-      <label class="settings__row">
+      <label class="settings__row settings__lens-only">
         <span>Lens size</span>
         <input type="range" id="lensSize" min="70" max="130" value="100" />
       </label>
-      <label class="settings__row">
+      <label class="settings__row settings__lens-only">
         <span>Highlight focus</span>
         <input type="checkbox" id="orpToggle" class="ios-switch" checked />
       </label>
@@ -194,7 +225,7 @@
         <button type="button" class="btn btn--ghost btn--sm" id="themeToggleSettings">Toggle theme</button>
       </label>
 
-      <div class="settings__row settings__row--stack">
+      <div class="settings__row settings__row--stack settings__lens-only">
         <span class="settings__row-top">
           <span>Your pace</span>
           <span class="settings__hint" id="calibrateHint">WPM slider · or calibrate</span>
@@ -210,6 +241,7 @@
     </aside>
   </section>
 
-  <script src="js/app.js?v=7"></script>
+  <script src="js/kinetic.js?v=8"></script>
+  <script src="js/app.js?v=8"></script>
 </body>
 </html>

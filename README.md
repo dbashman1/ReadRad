@@ -6,6 +6,8 @@
 
 Works in desktop Chrome and on iPhone Safari. No build step, no dependencies, no account — it's a static site.
 
+> **Also in this repo:** an in-house Remotion kinetic typography system lives in [`kinetic/`](./kinetic/) — see [`plan.md`](./plan.md). Run `cd kinetic && npm run dev` for Studio.
+
 ## Features
 
 - **Fixed-gaze reading** — the page moves, your eyes don't. The current word (or word group) is magnified and highlighted inside the lens.
