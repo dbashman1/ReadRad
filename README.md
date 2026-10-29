@@ -2,6 +2,8 @@
 
 **Read with your eyes still.** ReadRad keeps a magnifier lens fixed in the center of the screen and glides the page through it, so each word arrives where you're already looking — like subtitles that know exactly where your gaze is. The full page stays visible (dimmed) around the lens, so you never lose your place in the text.
 
+**Live app:** [dbashman1.github.io/ReadRad](https://dbashman1.github.io/ReadRad/)
+
 Works in desktop Chrome and on iPhone Safari. No build step, no dependencies, no account — it's a static site.
 
 ## Features
@@ -16,9 +18,10 @@ Works in desktop Chrome and on iPhone Safari. No build step, no dependencies, no
 - **Dark and light themes** with an iOS-style interface.
 - **Bring your own text** — paste it, upload a `.txt` / `.md` file, drag and drop a file onto the page, or try the built-in sample.
 
-## Getting started
+## Try it
 
-Serve the folder with any static file server, for example:
+- **Hosted:** <https://dbashman1.github.io/ReadRad/>
+- **Local:** serve the folder with any static file server, for example:
 
 ```bash
 npx serve -l 5199 .
@@ -26,7 +29,7 @@ npx serve -l 5199 .
 
 Then open <http://localhost:5199>. Opening `index.html` directly from disk also works in most browsers.
 
-To try it on a phone on the same network, open `http://<your-computer-ip>:5199`. For a public link, any static host (GitHub Pages, Netlify, Cloudflare Pages) or a tunnel such as `npx cloudflared tunnel --url http://localhost:5199` works.
+To try a local build on a phone on the same network, open `http://<your-computer-ip>:5199`.
 
 ## Using ReadRad
 
