@@ -1121,13 +1121,10 @@ body.is-reading .theme-toggle {
   z-index: 5;
   overflow: hidden;
   pointer-events: none;
+  /* Always cinematic dark — kinetic is its own world */
   background:
-    radial-gradient(ellipse 90% 70% at 50% 40%, #12131a 0%, #07080c 55%, #050507 100%);
-}
-
-[data-theme="light"] .kinetic-stage {
-  background:
-    radial-gradient(ellipse 90% 70% at 50% 40%, #f3efe6 0%, #e8e2d6 55%, #ddd5c6 100%);
+    radial-gradient(ellipse 90% 70% at 50% 38%, #16141f 0%, #0a090e 52%, #050507 100%);
+  color-scheme: dark;
 }
 
 .kinetic-fx {
@@ -1155,10 +1152,6 @@ body.is-reading .theme-toggle {
   position: absolute;
   inset: 0;
   background: radial-gradient(ellipse at center, transparent 40%, rgba(0, 0, 0, 0.55) 100%);
-}
-
-[data-theme="light"] .kinetic-fx__vignette {
-  background: radial-gradient(ellipse at center, transparent 45%, rgba(60, 40, 10, 0.12) 100%);
 }
 
 .kinetic-fx__grain {
@@ -1197,16 +1190,12 @@ body.is-reading .theme-toggle {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.35rem;
+  gap: 0.55rem;
   width: 100%;
   text-align: center;
   font-family: "Instrument Sans", var(--font-ui);
-  color: #f4f0e8;
+  color: #f6f1e8;
   font-feature-settings: "ss01" on, "kern" on;
-}
-
-[data-theme="light"] .kinetic-comp {
-  color: #14110c;
 }
 
 .kinetic-comp.is-split {
@@ -1314,11 +1303,6 @@ body.is-reading .theme-toggle {
   line-height: 0.9;
   color: color-mix(in srgb, var(--accent) 55%, #fff6e8);
   text-shadow: 0 0 60px color-mix(in srgb, var(--accent) 35%, transparent);
-}
-
-[data-theme="light"] .k-unit.role-hero,
-[data-theme="light"] .k-unit.is-hero {
-  color: color-mix(in srgb, var(--accent) 40%, #1a1208);
 }
 
 .kinetic-comp__blade {

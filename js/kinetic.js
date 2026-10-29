@@ -144,10 +144,15 @@
 
   function sceneDuration(scene, wpm) {
     const n = scene.words.length;
-    const read = (n / Math.max(60, wpm)) * 60_000;
-    const enter = scene.layout === "scatterLock" ? 1100 : 900;
-    const hold = clamp(read * 0.7 + (scene.breathAfter ? 420 : 160), 700, 2800);
-    const exit = 520;
+    const read = (n / Math.max(70, wpm)) * 60_000;
+    const enter =
+      scene.layout === "scatterLock" || scene.layout === "orbitDrift"
+        ? 1200
+        : scene.layout === "bladeWipe"
+          ? 780
+          : 860;
+    const hold = clamp(read * 0.55 + (scene.breathAfter ? 380 : 90), 520, 2200);
+    const exit = scene.layout === "bladeWipe" ? 380 : 460;
     return { enter, hold, exit, total: enter + hold + exit };
   }
 
@@ -317,6 +322,10 @@
         ny: signed(index, 2),
         nr: signed(index, 3),
       });
+      // Trailing gap so flex layouts never collapse to a run-on string
+      if (role !== "hero" && role !== "column") {
+        el.style.marginInlineEnd = "0.28em";
+      }
       return el;
     }
 
