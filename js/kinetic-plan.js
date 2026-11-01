@@ -17,11 +17,15 @@
     "orbitDrift",
   ]);
 
-  const LAYOUT_CYCLES = {
-    "smooth-reveal": ["monument", "billboard", "riseColumn", "counterWeight"],
-    "highlight-sweep": ["bladeWipe", "billboard", "monument", "bladeWipe"],
-    "cinematic-emphasis": ["counterWeight", "pulseFocus", "monument", "billboard"],
-    "floating-drift": ["scatterLock", "riseColumn", "orbitDrift", "monument"],
+  /**
+   * Style packs only bias presentation — they do NOT rotate layouts by scene index.
+   * That rotation was what felt random (1 word/line, then huge/small chaos).
+   */
+  const STYLE_BIAS = {
+    "smooth-reveal": { prefer: "billboard", accent: "monument" },
+    "highlight-sweep": { prefer: "bladeWipe", accent: "billboard" },
+    "cinematic-emphasis": { prefer: "pulseFocus", accent: "counterWeight" },
+    "floating-drift": { prefer: "orbitDrift", accent: "billboard" },
   };
 
   const FUNCTION = new Set(
@@ -29,6 +33,18 @@
       " "
     )
   );
+
+  /** Soft cut points — prefer splitting BEFORE these when both sides are meaty. */
+  const CUT_BEFORE = new Set([
+    "and", "but", "or", "so", "yet", "nor",
+    "when", "while", "because", "although", "though", "if", "unless",
+    "that", "which", "who", "where", "as",
+  ]);
+
+  const MAX_SCENE_WORDS = 11;
+  const MIN_SCENE_WORDS = 3;
+  const TARGET_LINE_CHARS = 34;
+  const MAX_LINE_CHARS = 44;
 
   const STORAGE_KEY = "readrad-kinetic-llm";
   const cache = new Map();
@@ -50,13 +66,181 @@
     let score = -1;
     words.forEach((w, i) => {
       const content = !FUNCTION.has(w.bare);
-      const s = (content ? 10 : 0) + w.bare.length + (i === words.length - 1 ? 2 : 0);
+      // Prefer a mid/late content word — sentence stress — not a random long token up front
+      const position = i / Math.max(1, words.length - 1);
+      const s =
+        (content ? 12 : 0) +
+        Math.min(8, w.bare.length) +
+        position * 4 +
+        (i === words.length - 1 && content ? 3 : 0);
       if (s > score) {
         score = s;
         best = i;
       }
     });
     return best;
+  }
+
+  function joinWords(words) {
+    return words.map((w) => w.text).join(" ");
+  }
+
+  function lineCharLen(words) {
+    if (!words.length) return 0;
+    return words.reduce((n, w) => n + w.text.length, 0) + Math.max(0, words.length - 1);
+  }
+
+  /**
+   * Pack words into balanced display lines by character measure.
+   * Never leaves a single orphan word on the last line if it can be avoided.
+   */
+  function packLines(words, target = TARGET_LINE_CHARS, max = MAX_LINE_CHARS) {
+    if (!words.length) return [];
+    if (words.length <= 2 || lineCharLen(words) <= max) return [words];
+
+    const lines = [];
+    let cur = [];
+    for (const w of words) {
+      const nextLen = lineCharLen(cur) + (cur.length ? 1 : 0) + w.text.length;
+      if (cur.length && nextLen > max) {
+        lines.push(cur);
+        cur = [w];
+      } else if (cur.length >= 2 && nextLen > target && !FUNCTION.has(w.bare)) {
+        // Prefer breaking before a content word once we're past the measure
+        lines.push(cur);
+        cur = [w];
+      } else {
+        cur.push(w);
+      }
+    }
+    if (cur.length) lines.push(cur);
+
+    // Fix widow: single word on last line → pull one back from previous
+    if (lines.length >= 2 && lines[lines.length - 1].length === 1) {
+      const prev = lines[lines.length - 2];
+      if (prev.length >= 3) {
+        const moved = prev.pop();
+        lines[lines.length - 1].unshift(moved);
+      } else {
+        // Merge last two if still tiny
+        const last = lines.pop();
+        lines[lines.length - 1] = lines[lines.length - 1].concat(last);
+      }
+    }
+
+    // Cap at 3 lines — merge overflow into last
+    while (lines.length > 3) {
+      const extra = lines.pop();
+      lines[lines.length - 1] = lines[lines.length - 1].concat(extra);
+    }
+
+    // Re-index
+    let i = 0;
+    return lines.map((line) =>
+      line.map((w) => {
+        const next = { ...w, index: i };
+        i += 1;
+        return next;
+      })
+    );
+  }
+
+  function scoreCut(leftCount, rightCount, reasonBoost) {
+    if (leftCount < 2 || rightCount < 2) return -1;
+    const balance = 1 - Math.abs(leftCount - rightCount) / (leftCount + rightCount);
+    const sizeOk =
+      leftCount <= MAX_SCENE_WORDS && rightCount <= MAX_SCENE_WORDS ? 1 : 0.4;
+    return balance * 2 + sizeOk + reasonBoost;
+  }
+
+  /** Find best split index (word starts the RIGHT scene). */
+  function bestSplitIndex(words) {
+    let best = -1;
+    let bestScore = -1;
+    for (let i = 2; i <= words.length - 2; i++) {
+      const w = words[i];
+      let boost = 0;
+      if (CUT_BEFORE.has(w.bare)) boost = 1.4;
+      // After punctuation glued to previous token
+      if (/[,;:]$/.test(words[i - 1].text)) boost = Math.max(boost, 1.2);
+      const s = scoreCut(i, words.length - i, boost);
+      if (s > bestScore) {
+        bestScore = s;
+        best = i;
+      }
+    }
+    return bestScore >= 1.2 ? best : -1;
+  }
+
+  /**
+   * Split a sentence into breath-sized scenes using structure, not a layout wheel.
+   */
+  function cutSentence(sentence) {
+    let words = splitWords(sentence);
+    if (!words.length) return [];
+
+    const out = [];
+    const queue = [words];
+    while (queue.length) {
+      const chunk = queue.shift();
+      if (chunk.length <= MAX_SCENE_WORDS) {
+        out.push(chunk);
+        continue;
+      }
+      const at = bestSplitIndex(chunk);
+      if (at > 0) {
+        queue.unshift(chunk.slice(at));
+        queue.unshift(chunk.slice(0, at));
+      } else {
+        // Hard wrap at measure — keep at least MIN_SCENE_WORDS on the left
+        const hard = Math.min(MAX_SCENE_WORDS, Math.max(MIN_SCENE_WORDS, Math.ceil(chunk.length / 2)));
+        queue.unshift(chunk.slice(hard));
+        queue.unshift(chunk.slice(0, hard));
+      }
+    }
+    return out.map(joinWords);
+  }
+
+  /**
+   * Pick layout from phrase shape + mild style bias. Deterministic.
+   * riseColumn is intentionally unused in the default rules — it caused one-word-per-line.
+   */
+  function chooseLayout(words, preset, { isShortPunch } = {}) {
+    const n = words.length;
+    const bias = STYLE_BIAS[preset] || STYLE_BIAS["smooth-reveal"];
+    const chars = lineCharLen(words);
+
+    if (n <= 2) return "monument";
+    if (n <= 4 && isShortPunch) return bias.accent === "monument" ? "monument" : bias.prefer === "orbitDrift" ? "orbitDrift" : "monument";
+
+    if (n <= 6 && chars <= MAX_LINE_CHARS) {
+      if (bias.prefer === "bladeWipe") return "bladeWipe";
+      if (bias.prefer === "orbitDrift") return "orbitDrift";
+      if (bias.prefer === "pulseFocus") return "pulseFocus";
+      return "monument";
+    }
+
+    // Longer material → stable billboard with packed lines
+    if (bias.prefer === "bladeWipe" && n <= 9) return "bladeWipe";
+    if (bias.prefer === "pulseFocus" && n <= 10) return "pulseFocus";
+    if (bias.accent === "counterWeight" && n >= 6) return "counterWeight";
+    return "billboard";
+  }
+
+  function chooseHold(words, { breathAfter, endsUnit }) {
+    let hold = 1;
+    const last = words[words.length - 1];
+    if (endsUnit || /[.!?]$/.test(last?.text || "")) hold += 0.2;
+    if (breathAfter) hold += 0.25;
+    if (words.length <= 4) hold += 0.1;
+    if (words.length >= 9) hold -= 0.1;
+    return clamp(hold, 0.7, 1.6);
+  }
+
+  function isShortPunch(words) {
+    if (words.length > 4) return false;
+    const content = words.filter((w) => !FUNCTION.has(w.bare));
+    return content.length >= Math.ceil(words.length * 0.5);
   }
 
   function normalizeHero(hero, wordCount) {
@@ -92,7 +276,10 @@
         lines = raw.lines
           .map((line) => splitWords(line))
           .filter((ws) => ws.length);
-        // re-index within scene
+      } else if (layout === "billboard" || layout === "pulseFocus") {
+        lines = packLines(words);
+      }
+      if (lines) {
         let i = 0;
         lines = lines.map((ws) =>
           ws.map((w) => {
@@ -122,48 +309,50 @@
     };
   }
 
-  /** Offline choreographer — same rotating packs as before. */
+  /**
+   * Offline editorial choreographer — deterministic measure + structure.
+   * No layout roulette. Style pack only biases among a few fitting options.
+   */
   function planHeuristic(raw, { preset = "smooth-reveal" } = {}) {
     const text = String(raw).replace(/\r\n/g, "\n").trim();
     if (!text) return normalizePlan({ scenes: [], source: "heuristic" }, { preset });
 
     const paras = text.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
-    const phrases = [];
-    for (const para of paras) {
-      const sentences = para.split(/(?<=[.!?])\s+/).map((s) => s.trim()).filter(Boolean);
-      for (const sentence of sentences) {
-        const clauses = sentence
-          .split(/(?<=[,;:—–])\s+|\s+[—–]\s+/)
-          .map((c) => c.trim())
-          .filter(Boolean);
-        if (clauses.length >= 2 && sentence.split(/\s+/).length > 14) phrases.push(...clauses);
-        else phrases.push(sentence);
+    const draft = [];
+
+    for (let pi = 0; pi < paras.length; pi++) {
+      const sentences = paras[pi]
+        .split(/(?<=[.!?])\s+/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+
+      for (let si = 0; si < sentences.length; si++) {
+        const pieces = cutSentence(sentences[si]);
+        pieces.forEach((piece, idx) => {
+          const words = splitWords(piece);
+          if (!words.length) return;
+          const endsUnit = idx === pieces.length - 1;
+          const breathAfter = endsUnit && si === sentences.length - 1;
+          const layout = chooseLayout(words, preset, { isShortPunch: isShortPunch(words) });
+          const hero = pickHero(words);
+          const lines =
+            layout === "billboard" || layout === "pulseFocus"
+              ? packLines(words).map((line) => joinWords(line))
+              : null;
+          draft.push({
+            text: piece,
+            layout,
+            hero: [hero],
+            hold: chooseHold(words, { breathAfter, endsUnit }),
+            lines,
+            breathAfter,
+            reason: `rules:${layout}`,
+          });
+        });
       }
-      phrases.push({ __beat: "breath" });
     }
 
-    const cycle = LAYOUT_CYCLES[preset] || LAYOUT_CYCLES["smooth-reveal"];
-    const scenes = [];
-    let layoutIdx = 0;
-    for (const phrase of phrases) {
-      if (phrase && phrase.__beat === "breath") {
-        if (scenes.length) scenes[scenes.length - 1].breathAfter = true;
-        continue;
-      }
-      const words = splitWords(phrase);
-      if (!words.length) continue;
-      const layout = cycle[layoutIdx % cycle.length];
-      layoutIdx += 1;
-      const hero = pickHero(words);
-      scenes.push({
-        text: phrase,
-        layout,
-        hero: [hero],
-        hold: 1,
-        breathAfter: false,
-      });
-    }
-    return normalizePlan({ scenes, source: "heuristic" }, { preset });
+    return normalizePlan({ scenes: draft, source: "heuristic" }, { preset });
   }
 
   function getLlmConfig() {
