@@ -7,8 +7,8 @@
   <title>ReadRad — Lens & Kinetic Reading</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Instrument+Sans:wght@400;500;600;700&family=Literata:opsz,wght@7..72,400;7..72,500;7..72,600;7..72,700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/styles.css?v=12" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Figtree:wght@400;500;600;700&family=Instrument+Sans:wght@400;500;600;700&family=Literata:opsz,wght@7..72,400;7..72,500;7..72,600;7..72,700&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600;6..72,700&family=Syne:wght@500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css?v=13" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%230a0a0b'/%3E%3Ccircle cx='16' cy='16' r='7.5' fill='none' stroke='%236eb5ff' stroke-width='2'/%3E%3Ccircle cx='16' cy='16' r='2.5' fill='%236eb5ff'/%3E%3C/svg%3E" />
   <script>
     (function () {
@@ -186,15 +186,82 @@
         </div>
       </label>
 
-      <label class="settings__row settings__kinetic-only" hidden>
-        <span>Kinetic style</span>
-        <select id="kineticStyleSettings">
-          <option value="smooth-reveal" selected>Editorial (balanced lines)</option>
-          <option value="highlight-sweep">Blade bias</option>
-          <option value="cinematic-emphasis">Focus / counterweight bias</option>
-          <option value="floating-drift">Orbit bias (short phrases)</option>
-        </select>
-      </label>
+      <div class="settings__section settings__kinetic-only" hidden>
+        <h3 class="settings__subtitle">Kinetic reading</h3>
+
+        <label class="settings__row">
+          <span>Theme</span>
+          <select id="kineticTheme">
+            <option value="noir" selected>Noir</option>
+            <option value="paper">Paper</option>
+            <option value="aurora">Aurora</option>
+            <option value="studio">Studio</option>
+            <option value="ink">Ink</option>
+            <option value="signal">Signal</option>
+          </select>
+        </label>
+
+        <label class="settings__row">
+          <span>Typeface</span>
+          <select id="kineticFont">
+            <option value="instrument" selected>Instrument Sans</option>
+            <option value="figtree">Figtree</option>
+            <option value="syne">Syne</option>
+            <option value="dm">DM Sans</option>
+            <option value="literata">Literata</option>
+            <option value="newsreader">Newsreader</option>
+          </select>
+        </label>
+
+        <label class="settings__row">
+          <span>Type size</span>
+          <div class="settings__inline">
+            <input type="range" id="kineticFontScale" min="70" max="150" step="5" value="100" />
+            <span class="settings__hint" id="kineticFontScaleValue">100%</span>
+          </div>
+        </label>
+
+        <label class="settings__row">
+          <span>Phrases / slide</span>
+          <select id="kineticPhrasesPerSlide">
+            <option value="1" selected>1 — tight cuts</option>
+            <option value="2">2 — paired beats</option>
+            <option value="3">3 — denser slides</option>
+          </select>
+        </label>
+
+        <label class="settings__row">
+          <span>Arrangement</span>
+          <select id="kineticArrangement">
+            <option value="balanced" selected>Balanced lines</option>
+            <option value="left">Flush left</option>
+            <option value="center">Centered</option>
+            <option value="hero">Hero word</option>
+            <option value="split">Split weight</option>
+          </select>
+        </label>
+
+        <label class="settings__row">
+          <span>Transition</span>
+          <select id="kineticTransition">
+            <option value="fade-rise" selected>Fade &amp; rise</option>
+            <option value="soft-blur">Soft blur</option>
+            <option value="blade">Blade wipe</option>
+            <option value="scale">Scale settle</option>
+            <option value="push">Push through</option>
+          </select>
+        </label>
+
+        <label class="settings__row">
+          <span>Motion bias</span>
+          <select id="kineticStyleSettings">
+            <option value="smooth-reveal" selected>Editorial</option>
+            <option value="highlight-sweep">Blade</option>
+            <option value="cinematic-emphasis">Focus</option>
+            <option value="floating-drift">Orbit</option>
+          </select>
+        </label>
+      </div>
 
       <label class="settings__row settings__kinetic-only" hidden>
         <span>Smart choreography (LLM)</span>
@@ -203,7 +270,7 @@
       <div class="settings__row settings__row--stack settings__kinetic-only" id="kineticLlmFields" hidden>
         <span class="settings__row-top">
           <span>Director model</span>
-          <span class="settings__hint" id="kineticLlmHint">Key stays in this browser only</span>
+          <span class="settings__hint" id="kineticLlmHint">Optional · key stays in this browser</span>
         </span>
         <input type="password" id="kineticApiKey" class="settings__input" placeholder="API key (OpenAI / compatible)" autocomplete="off" />
         <input type="text" id="kineticBaseUrl" class="settings__input" placeholder="Base URL" value="https://api.openai.com/v1" />
@@ -262,8 +329,9 @@
     </aside>
   </section>
 
-  <script src="js/kinetic-plan.js?v=12"></script>
-  <script src="js/kinetic.js?v=12"></script>
-  <script src="js/app.js?v=12"></script>
+  <script src="js/kinetic-prefs.js?v=13"></script>
+  <script src="js/kinetic-plan.js?v=13"></script>
+  <script src="js/kinetic.js?v=13"></script>
+  <script src="js/app.js?v=13"></script>
 </body>
 </html>

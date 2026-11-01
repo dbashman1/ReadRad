@@ -82,6 +82,13 @@ Try this with an article you have been putting off, a chapter you want to finish
     kineticDockControl: document.getElementById("kineticDockControl"),
     kineticStyleSelect: document.getElementById("kineticStyleSelect"),
     kineticStyleSettings: document.getElementById("kineticStyleSettings"),
+    kineticTheme: document.getElementById("kineticTheme"),
+    kineticFont: document.getElementById("kineticFont"),
+    kineticFontScale: document.getElementById("kineticFontScale"),
+    kineticFontScaleValue: document.getElementById("kineticFontScaleValue"),
+    kineticPhrasesPerSlide: document.getElementById("kineticPhrasesPerSlide"),
+    kineticArrangement: document.getElementById("kineticArrangement"),
+    kineticTransition: document.getElementById("kineticTransition"),
     kineticLlmToggle: document.getElementById("kineticLlmToggle"),
     kineticLlmFields: document.getElementById("kineticLlmFields"),
     kineticLlmHint: document.getElementById("kineticLlmHint"),
@@ -98,6 +105,7 @@ Try this with an article you have been putting off, a chapter you want to finish
   const state = {
     mode: "lens",
     kineticPreset: "smooth-reveal",
+    kineticPrefs: window.ReadRadKineticPrefs?.load?.() || {},
     kineticPlanAbort: null,
     words: [],
     syllables: [],
@@ -801,8 +809,7 @@ Try this with an article you have been putting off, a chapter you want to finish
       el.hidden = !kinetic;
     });
 
-    if (els.kineticStyleSelect) els.kineticStyleSelect.value = state.kineticPreset;
-    if (els.kineticStyleSettings) els.kineticStyleSettings.value = state.kineticPreset;
+    syncKineticPrefsUi();
     syncKineticLlmUi();
   }
 
@@ -816,10 +823,35 @@ Try this with an article you have been putting off, a chapter you want to finish
   }
 
   function setKineticPreset(preset) {
-    state.kineticPreset = preset;
-    if (els.kineticStyleSelect) els.kineticStyleSelect.value = preset;
-    if (els.kineticStyleSettings) els.kineticStyleSettings.value = preset;
-    kineticPlayer?.setPreset(preset);
+    updateKineticPrefs({ preset });
+  }
+
+  function syncKineticPrefsUi() {
+    const Prefs = window.ReadRadKineticPrefs;
+    if (!Prefs) return;
+    const p = state.kineticPrefs || Prefs.load();
+    state.kineticPrefs = p;
+    state.kineticPreset = p.preset;
+    if (els.kineticTheme) els.kineticTheme.value = p.theme;
+    if (els.kineticFont) els.kineticFont.value = p.font;
+    if (els.kineticFontScale) els.kineticFontScale.value = String(p.fontScale);
+    if (els.kineticFontScaleValue) els.kineticFontScaleValue.textContent = `${p.fontScale}%`;
+    if (els.kineticPhrasesPerSlide) els.kineticPhrasesPerSlide.value = String(p.phrasesPerSlide);
+    if (els.kineticArrangement) els.kineticArrangement.value = p.arrangement;
+    if (els.kineticTransition) els.kineticTransition.value = p.transition;
+    if (els.kineticStyleSelect) els.kineticStyleSelect.value = p.preset;
+    if (els.kineticStyleSettings) els.kineticStyleSettings.value = p.preset;
+    Prefs.applyToStage(els.kineticStage, p);
+  }
+
+  function updateKineticPrefs(partial, { rebuild = true } = {}) {
+    const Prefs = window.ReadRadKineticPrefs;
+    state.kineticPrefs = Prefs ? Prefs.save(partial) : { ...state.kineticPrefs, ...partial };
+    state.kineticPreset = state.kineticPrefs.preset;
+    syncKineticPrefsUi();
+    if (!els.reader.hidden && state.mode === "kinetic") {
+      kineticPlayer?.setPrefs(state.kineticPrefs, { rebuild });
+    }
   }
 
   /**
@@ -977,8 +1009,10 @@ Try this with an article you have been putting off, a chapter you want to finish
     if (cfg.enabled && cfg.apiKey && Plan?.planText) {
       els.hint.textContent = "Choreographing with the model…";
       els.hint.classList.remove("is-faded");
+      const prefs = state.kineticPrefs || window.ReadRadKineticPrefs?.load?.() || {};
       const plan = await Plan.planText(text, {
-        preset: state.kineticPreset,
+        ...prefs,
+        preset: prefs.preset || state.kineticPreset,
         signal: ac.signal,
         onFallback: (err) => {
           console.warn("Kinetic LLM fallback:", err);
@@ -989,18 +1023,21 @@ Try this with an article you have been putting off, a chapter you want to finish
       });
       if (ac.signal.aborted) return;
       kineticPlayer.loadPlan(plan, {
-        preset: state.kineticPreset,
+        preset: prefs.preset || state.kineticPreset,
         wpm: state.wpm,
         raw: text,
+        prefs,
       });
       const src = plan.source === "llm" ? "model" : "rules";
       els.hint.textContent = `Press space · Directed by ${src} (${plan.scenes.length} beats)`;
     } else {
+      const prefs = state.kineticPrefs || window.ReadRadKineticPrefs?.load?.() || {};
       kineticPlayer.load(text, {
-        preset: state.kineticPreset,
+        preset: prefs.preset || state.kineticPreset,
         wpm: state.wpm,
+        prefs,
       });
-      els.hint.textContent = "Press space · Kinetic lines advance with your pace";
+      els.hint.textContent = "Press space · Adjust theme, type & motion in settings";
     }
     els.hint.classList.remove("is-faded");
   }
@@ -1276,13 +1313,33 @@ Try this with an article you have been putting off, a chapter you want to finish
   els.modeKinetic?.addEventListener("click", () => setMode("kinetic"));
 
   function onKineticStyleInput(value) {
-    setKineticPreset(value);
+    updateKineticPrefs({ preset: value });
   }
   els.kineticStyleSelect?.addEventListener("change", () => {
     onKineticStyleInput(els.kineticStyleSelect.value);
   });
   els.kineticStyleSettings?.addEventListener("change", () => {
     onKineticStyleInput(els.kineticStyleSettings.value);
+  });
+  els.kineticTheme?.addEventListener("change", () => {
+    updateKineticPrefs({ theme: els.kineticTheme.value }, { rebuild: false });
+  });
+  els.kineticFont?.addEventListener("change", () => {
+    updateKineticPrefs({ font: els.kineticFont.value }, { rebuild: false });
+  });
+  els.kineticFontScale?.addEventListener("input", () => {
+    const fontScale = Number(els.kineticFontScale.value);
+    if (els.kineticFontScaleValue) els.kineticFontScaleValue.textContent = `${fontScale}%`;
+    updateKineticPrefs({ fontScale }, { rebuild: false });
+  });
+  els.kineticPhrasesPerSlide?.addEventListener("change", () => {
+    updateKineticPrefs({ phrasesPerSlide: Number(els.kineticPhrasesPerSlide.value) });
+  });
+  els.kineticArrangement?.addEventListener("change", () => {
+    updateKineticPrefs({ arrangement: els.kineticArrangement.value });
+  });
+  els.kineticTransition?.addEventListener("change", () => {
+    updateKineticPrefs({ transition: els.kineticTransition.value });
   });
 
   els.kineticLlmToggle?.addEventListener("change", () => {

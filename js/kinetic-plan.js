@@ -202,16 +202,29 @@
   }
 
   /**
-   * Pick layout from phrase shape + mild style bias. Deterministic.
-   * riseColumn is intentionally unused in the default rules — it caused one-word-per-line.
+   * Pick layout from phrase shape + arrangement + mild style bias.
+   * riseColumn is unused in default rules — it caused one-word-per-line.
    */
-  function chooseLayout(words, preset, { isShortPunch } = {}) {
+  function chooseLayout(words, preset, { isShortPunch, arrangement = "balanced", transition } = {}) {
     const n = words.length;
     const bias = STYLE_BIAS[preset] || STYLE_BIAS["smooth-reveal"];
     const chars = lineCharLen(words);
 
+    // User arrangement overrides take priority when they fit the phrase length
+    if (arrangement === "hero" && n <= 8) return n <= 6 ? "monument" : "billboard";
+    if (arrangement === "split" && n >= 5) return "counterWeight";
+    if (arrangement === "left" || arrangement === "center") {
+      if (n <= 4 && isShortPunch) return "monument";
+      return "billboard";
+    }
+
+    if (transition === "blade" && n >= 3 && n <= 10) return "bladeWipe";
+
     if (n <= 2) return "monument";
-    if (n <= 4 && isShortPunch) return bias.accent === "monument" ? "monument" : bias.prefer === "orbitDrift" ? "orbitDrift" : "monument";
+    if (n <= 4 && isShortPunch) {
+      if (bias.prefer === "orbitDrift") return "orbitDrift";
+      return "monument";
+    }
 
     if (n <= 6 && chars <= MAX_LINE_CHARS) {
       if (bias.prefer === "bladeWipe") return "bladeWipe";
@@ -220,11 +233,25 @@
       return "monument";
     }
 
-    // Longer material → stable billboard with packed lines
     if (bias.prefer === "bladeWipe" && n <= 9) return "bladeWipe";
     if (bias.prefer === "pulseFocus" && n <= 10) return "pulseFocus";
     if (bias.accent === "counterWeight" && n >= 6) return "counterWeight";
     return "billboard";
+  }
+
+  function mergePhrases(pieces, perSlide) {
+    const n = clamp(Math.round(perSlide) || 1, 1, 3);
+    if (n <= 1) return pieces.map((p) => ({ text: p, endsUnit: true }));
+    const out = [];
+    for (let i = 0; i < pieces.length; i += n) {
+      const chunk = pieces.slice(i, i + n);
+      out.push({
+        text: chunk.join(" "),
+        endsUnit: true,
+        merged: chunk.length,
+      });
+    }
+    return out;
   }
 
   function chooseHold(words, { breathAfter, endsUnit }) {
@@ -298,6 +325,8 @@
         heroes: new Set(hero),
         holdScale: hold,
         breathAfter: Boolean(raw.breathAfter),
+        transition: raw.transition || "fade-rise",
+        arrangement: raw.arrangement || "balanced",
         reason: raw.reason ? String(raw.reason) : "",
       });
     }
@@ -311,9 +340,14 @@
 
   /**
    * Offline editorial choreographer — deterministic measure + structure.
-   * No layout roulette. Style pack only biases among a few fitting options.
+   * Options: phrasesPerSlide, arrangement, transition, preset.
    */
-  function planHeuristic(raw, { preset = "smooth-reveal" } = {}) {
+  function planHeuristic(raw, opts = {}) {
+    const preset = opts.preset || "smooth-reveal";
+    const phrasesPerSlide = clamp(Number(opts.phrasesPerSlide) || 1, 1, 3);
+    const arrangement = opts.arrangement || "balanced";
+    const transition = opts.transition || "fade-rise";
+
     const text = String(raw).replace(/\r\n/g, "\n").trim();
     if (!text) return normalizePlan({ scenes: [], source: "heuristic" }, { preset });
 
@@ -326,30 +360,38 @@
         .map((s) => s.trim())
         .filter(Boolean);
 
+      const paragraphPieces = [];
       for (let si = 0; si < sentences.length; si++) {
-        const pieces = cutSentence(sentences[si]);
-        pieces.forEach((piece, idx) => {
-          const words = splitWords(piece);
-          if (!words.length) return;
-          const endsUnit = idx === pieces.length - 1;
-          const breathAfter = endsUnit && si === sentences.length - 1;
-          const layout = chooseLayout(words, preset, { isShortPunch: isShortPunch(words) });
-          const hero = pickHero(words);
-          const lines =
-            layout === "billboard" || layout === "pulseFocus"
-              ? packLines(words).map((line) => joinWords(line))
-              : null;
-          draft.push({
-            text: piece,
-            layout,
-            hero: [hero],
-            hold: chooseHold(words, { breathAfter, endsUnit }),
-            lines,
-            breathAfter,
-            reason: `rules:${layout}`,
-          });
-        });
+        paragraphPieces.push(...cutSentence(sentences[si]));
       }
+
+      const slides = mergePhrases(paragraphPieces, phrasesPerSlide);
+      slides.forEach((slide, idx) => {
+        const words = splitWords(slide.text);
+        if (!words.length) return;
+        const breathAfter = idx === slides.length - 1;
+        const layout = chooseLayout(words, preset, {
+          isShortPunch: isShortPunch(words),
+          arrangement,
+          transition,
+        });
+        const hero = pickHero(words);
+        const lines =
+          layout === "billboard" || layout === "pulseFocus"
+            ? packLines(words).map((line) => joinWords(line))
+            : null;
+        draft.push({
+          text: slide.text,
+          layout,
+          hero: [hero],
+          hold: chooseHold(words, { breathAfter, endsUnit: true }) * (slide.merged > 1 ? 1.15 : 1),
+          lines,
+          breathAfter,
+          transition,
+          arrangement,
+          reason: `rules:${layout}`,
+        });
+      });
     }
 
     return normalizePlan({ scenes: draft, source: "heuristic" }, { preset });
@@ -483,17 +525,17 @@ ${text.slice(0, 12000)}
    * On LLM failure, falls back to heuristic and reports via onFallback.
    */
   async function planText(raw, opts = {}) {
-    const { preset = "smooth-reveal", signal, onFallback } = opts;
+    const { signal, onFallback, ...planOpts } = opts;
     const cfg = getLlmConfig();
     if (cfg.enabled && cfg.apiKey) {
       try {
-        return await planWithLlm(raw, { preset, signal });
+        return await planWithLlm(raw, { preset: planOpts.preset, signal });
       } catch (err) {
         onFallback?.(err);
-        return planHeuristic(raw, { preset });
+        return planHeuristic(raw, planOpts);
       }
     }
-    return planHeuristic(raw, { preset });
+    return planHeuristic(raw, planOpts);
   }
 
   window.ReadRadKineticPlan = {
