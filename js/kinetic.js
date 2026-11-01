@@ -129,12 +129,15 @@
       }
       const words = splitWords(phrase);
       if (!words.length) continue;
+      // Layouts rotate by scene index inside the active style pack — not by grammar.
+      // Guarding rules below stop layouts that look broken on the wrong phrase length.
       let layout = cycle[layoutIdx % cycle.length];
       layoutIdx += 1;
-      // Long lines as monument read like a title + caption — use billboard instead
       if (layout === "monument" && words.length > 7) layout = "billboard";
-      if (layout === "riseColumn" && words.length > 8) layout = "billboard";
+      // riseColumn is one-word-per-line by design — only allow it on short punches
+      if (layout === "riseColumn" && words.length > 4) layout = "billboard";
       if (layout === "scatterLock" && words.length > 6) layout = "orbitDrift";
+      if (layout === "counterWeight" && words.length < 4) layout = "monument";
       scenes.push({
         text: phrase,
         words,
@@ -303,11 +306,15 @@
       emit();
     }
 
+    /** Split into ~2–3 display lines by word count (not linguistic phrasing yet). */
     function chunkLines(words, maxLines) {
-      if (words.length <= 4) return [words];
-      const per = Math.ceil(words.length / Math.min(maxLines, 3));
+      if (words.length <= 5) return [words];
+      const linesWanted = words.length <= 9 ? 2 : Math.min(maxLines, 3);
+      const per = Math.ceil(words.length / linesWanted);
+      // Prefer at least 3 words on a line so we don't get lonely single-word rows
+      const size = Math.max(3, per);
       const lines = [];
-      for (let i = 0; i < words.length; i += per) lines.push(words.slice(i, i + per));
+      for (let i = 0; i < words.length; i += size) lines.push(words.slice(i, i + size));
       return lines;
     }
 
