@@ -82,6 +82,12 @@ Try this with an article you have been putting off, a chapter you want to finish
     kineticDockControl: document.getElementById("kineticDockControl"),
     kineticStyleSelect: document.getElementById("kineticStyleSelect"),
     kineticStyleSettings: document.getElementById("kineticStyleSettings"),
+    kineticLlmToggle: document.getElementById("kineticLlmToggle"),
+    kineticLlmFields: document.getElementById("kineticLlmFields"),
+    kineticLlmHint: document.getElementById("kineticLlmHint"),
+    kineticApiKey: document.getElementById("kineticApiKey"),
+    kineticBaseUrl: document.getElementById("kineticBaseUrl"),
+    kineticModel: document.getElementById("kineticModel"),
   };
 
   const kineticPlayer =
@@ -92,6 +98,7 @@ Try this with an article you have been putting off, a chapter you want to finish
   const state = {
     mode: "lens",
     kineticPreset: "smooth-reveal",
+    kineticPlanAbort: null,
     words: [],
     syllables: [],
     letters: [],
@@ -796,6 +803,7 @@ Try this with an article you have been putting off, a chapter you want to finish
 
     if (els.kineticStyleSelect) els.kineticStyleSelect.value = state.kineticPreset;
     if (els.kineticStyleSettings) els.kineticStyleSettings.value = state.kineticPreset;
+    syncKineticLlmUi();
   }
 
   function setMode(mode) {
@@ -952,6 +960,81 @@ Try this with an article you have been putting off, a chapter you want to finish
 
   /* ---------- screens ---------- */
 
+  async function enterKinetic(text) {
+    const Plan = window.ReadRadKineticPlan;
+    const cfg = Plan?.getLlmConfig?.() || { enabled: false };
+
+    if (state.kineticPlanAbort) {
+      try {
+        state.kineticPlanAbort.abort();
+      } catch (_) {
+        /* ignore */
+      }
+    }
+    const ac = new AbortController();
+    state.kineticPlanAbort = ac;
+
+    if (cfg.enabled && cfg.apiKey && Plan?.planText) {
+      els.hint.textContent = "Choreographing with the model…";
+      els.hint.classList.remove("is-faded");
+      const plan = await Plan.planText(text, {
+        preset: state.kineticPreset,
+        signal: ac.signal,
+        onFallback: (err) => {
+          console.warn("Kinetic LLM fallback:", err);
+          if (els.kineticLlmHint) {
+            els.kineticLlmHint.textContent = `Fell back to rules · ${String(err.message || err).slice(0, 80)}`;
+          }
+        },
+      });
+      if (ac.signal.aborted) return;
+      kineticPlayer.loadPlan(plan, {
+        preset: state.kineticPreset,
+        wpm: state.wpm,
+        raw: text,
+      });
+      const src = plan.source === "llm" ? "model" : "rules";
+      els.hint.textContent = `Press space · Directed by ${src} (${plan.scenes.length} beats)`;
+    } else {
+      kineticPlayer.load(text, {
+        preset: state.kineticPreset,
+        wpm: state.wpm,
+      });
+      els.hint.textContent = "Press space · Kinetic lines advance with your pace";
+    }
+    els.hint.classList.remove("is-faded");
+  }
+
+  function syncKineticLlmUi() {
+    const Plan = window.ReadRadKineticPlan;
+    if (!Plan?.getLlmConfig) return;
+    const cfg = Plan.getLlmConfig();
+    if (els.kineticLlmToggle) els.kineticLlmToggle.checked = cfg.enabled;
+    if (els.kineticLlmFields) els.kineticLlmFields.hidden = !cfg.enabled;
+    if (els.kineticApiKey) els.kineticApiKey.value = cfg.apiKey || "";
+    if (els.kineticBaseUrl) els.kineticBaseUrl.value = cfg.baseUrl || "https://api.openai.com/v1";
+    if (els.kineticModel) els.kineticModel.value = cfg.model || "gpt-4o-mini";
+    if (els.kineticLlmHint) {
+      els.kineticLlmHint.textContent = cfg.enabled
+        ? cfg.apiKey
+          ? "Model will cut, emphasize, and hold"
+          : "Add an API key to enable"
+        : "Key stays in this browser only";
+    }
+  }
+
+  function persistKineticLlmUi() {
+    const Plan = window.ReadRadKineticPlan;
+    if (!Plan?.setLlmConfig) return;
+    Plan.setLlmConfig({
+      enabled: Boolean(els.kineticLlmToggle?.checked),
+      apiKey: els.kineticApiKey?.value?.trim() || "",
+      baseUrl: els.kineticBaseUrl?.value?.trim() || "https://api.openai.com/v1",
+      model: els.kineticModel?.value?.trim() || "gpt-4o-mini",
+    });
+    syncKineticLlmUi();
+  }
+
   function enterReader(rawText) {
     const text = rawText.trim();
     if (!text) return;
@@ -968,11 +1051,7 @@ Try this with an article you have been putting off, a chapter you want to finish
 
     if (state.mode === "kinetic") {
       if (!kineticPlayer) return;
-      els.hint.textContent = "Press space · Kinetic lines advance with your pace";
-      kineticPlayer.load(text, {
-        preset: state.kineticPreset,
-        wpm: state.wpm,
-      });
+      void enterKinetic(text);
       return;
     }
 
@@ -1206,6 +1285,13 @@ Try this with an article you have been putting off, a chapter you want to finish
     onKineticStyleInput(els.kineticStyleSettings.value);
   });
 
+  els.kineticLlmToggle?.addEventListener("change", () => {
+    persistKineticLlmUi();
+  });
+  ["kineticApiKey", "kineticBaseUrl", "kineticModel"].forEach((id) => {
+    els[id]?.addEventListener("change", persistKineticLlmUi);
+  });
+
   els.sampleBtn.addEventListener("click", () => {
     els.textInput.value = SAMPLE;
     syncStartEnabled();
@@ -1384,6 +1470,7 @@ Try this with an article you have been putting off, a chapter you want to finish
 
   // Init defaults
   applyModeChrome();
+  syncKineticLlmUi();
   state.wpm = Number(els.wpmRange.value);
   state.magFine = Number(els.magRange.value) / 100;
   state.pacing = els.pacingSelect.value;

@@ -43,19 +43,6 @@
     Object.entries(CURVES).map(([k, v]) => [k, bezier(...v)])
   );
 
-  const FUNCTION = new Set(
-    "a an the and or but if as at by for from in into of on to up with is am are was were be been being do does did has have had will would could should may might can must not no so than that this these those it its he she they we you i me my your our their his her him them who which what when where why how there here then too also just about over under out such each few more most other some any all".split(
-      " "
-    )
-  );
-
-  const LAYOUTS = {
-    "smooth-reveal": ["monument", "billboard", "riseColumn", "counterWeight"],
-    "highlight-sweep": ["bladeWipe", "billboard", "monument", "bladeWipe"],
-    "cinematic-emphasis": ["counterWeight", "pulseFocus", "monument", "billboard"],
-    "floating-drift": ["scatterLock", "riseColumn", "orbitDrift", "monument"],
-  };
-
   function clamp(v, lo, hi) {
     return Math.min(hi, Math.max(lo, v));
   }
@@ -81,74 +68,6 @@
     }));
   }
 
-  function pickHero(words) {
-    let best = 0;
-    let score = -1;
-    words.forEach((w, i) => {
-      const content = !FUNCTION.has(w.bare);
-      const s = (content ? 10 : 0) + w.bare.length + (i === words.length - 1 ? 2 : 0);
-      if (s > score) {
-        score = s;
-        best = i;
-      }
-    });
-    return best;
-  }
-
-  /** Break copy into cinematic scenes (clauses), not subtitle captions. */
-  function buildScenes(raw, preset) {
-    const text = raw.replace(/\r\n/g, "\n").trim();
-    if (!text) return [];
-    const paras = text.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
-    const phrases = [];
-
-    for (const para of paras) {
-      const sentences = para.split(/(?<=[.!?])\s+/).map((s) => s.trim()).filter(Boolean);
-      for (const sentence of sentences) {
-        const clauses = sentence
-          .split(/(?<=[,;:—–])\s+|\s+[—–]\s+/)
-          .map((c) => c.trim())
-          .filter((c) => c.length > 0);
-        if (clauses.length >= 2 && sentence.split(/\s+/).length > 14) {
-          phrases.push(...clauses);
-        } else {
-          phrases.push(sentence);
-        }
-      }
-      phrases.push({ __beat: "breath" });
-    }
-
-    const cycle = LAYOUTS[preset] || LAYOUTS["smooth-reveal"];
-    const scenes = [];
-    let layoutIdx = 0;
-
-    for (const phrase of phrases) {
-      if (phrase && phrase.__beat === "breath") {
-        if (scenes.length) scenes[scenes.length - 1].breathAfter = true;
-        continue;
-      }
-      const words = splitWords(phrase);
-      if (!words.length) continue;
-      // Layouts rotate by scene index inside the active style pack — not by grammar.
-      // Guarding rules below stop layouts that look broken on the wrong phrase length.
-      let layout = cycle[layoutIdx % cycle.length];
-      layoutIdx += 1;
-      if (layout === "monument" && words.length > 7) layout = "billboard";
-      // riseColumn is one-word-per-line by design — only allow it on short punches
-      if (layout === "riseColumn" && words.length > 4) layout = "billboard";
-      if (layout === "scatterLock" && words.length > 6) layout = "orbitDrift";
-      if (layout === "counterWeight" && words.length < 4) layout = "monument";
-      scenes.push({
-        text: phrase,
-        words,
-        layout,
-        hero: pickHero(words),
-        breathAfter: false,
-      });
-    }
-    return scenes;
-  }
-
   function sceneDuration(scene, wpm) {
     const n = scene.words.length;
     const read = (n / Math.max(70, wpm)) * 60_000;
@@ -158,9 +77,26 @@
         : scene.layout === "bladeWipe"
           ? 780
           : 860;
-    const hold = clamp(read * 0.55 + (scene.breathAfter ? 380 : 90), 520, 2200);
+    const holdScale = scene.holdScale ?? 1;
+    const hold = clamp(
+      (read * 0.55 + (scene.breathAfter ? 380 : 90)) * holdScale,
+      480,
+      3200
+    );
     const exit = scene.layout === "bladeWipe" ? 380 : 460;
     return { enter, hold, exit, total: enter + hold + exit };
+  }
+
+  function resolveScenes(rawOrPlan, preset) {
+    const Plan = window.ReadRadKineticPlan;
+    if (rawOrPlan && typeof rawOrPlan === "object" && Array.isArray(rawOrPlan.scenes)) {
+      return Plan
+        ? Plan.normalizePlan(rawOrPlan, { preset }).scenes
+        : rawOrPlan.scenes;
+    }
+    if (Plan) return Plan.planHeuristic(String(rawOrPlan || ""), { preset }).scenes;
+    // Tiny offline fallback if plan module failed to load
+    return [];
   }
 
   function createPlayer(root) {
@@ -214,31 +150,41 @@
       const shell = document.createElement("div");
       shell.className = "kinetic-comp";
 
+      const heroes = scene.heroes instanceof Set
+        ? scene.heroes
+        : new Set([scene.hero].filter((n) => n != null));
+      scene.heroes = heroes;
+      const heroIndex = heroes.size ? [...heroes][0] : 0;
+
       if (scene.layout === "monument") {
-        const hero = scene.words[scene.hero];
-        const before = scene.words.slice(0, scene.hero);
-        const after = scene.words.slice(scene.hero + 1);
+        const hero = scene.words[heroIndex] || scene.words[0];
+        const before = scene.words.slice(0, heroIndex);
+        const after = scene.words.slice(heroIndex + 1);
         if (before.length) {
           const top = document.createElement("div");
           top.className = "kinetic-comp__lead";
           before.forEach((w, wi) => top.appendChild(makeWord(w, wi, "lead")));
           shell.appendChild(top);
         }
-        const heroEl = makeWord(hero, scene.hero, "hero");
+        const heroEl = makeWord(hero, heroIndex, "hero");
         heroEl.classList.add("is-hero");
         shell.appendChild(heroEl);
         if (after.length) {
           const bot = document.createElement("div");
           bot.className = "kinetic-comp__support";
-          after.forEach((w, wi) => bot.appendChild(makeWord(w, scene.hero + 1 + wi, "support")));
+          after.forEach((w, wi) => bot.appendChild(makeWord(w, heroIndex + 1 + wi, "support")));
           shell.appendChild(bot);
         }
       } else if (scene.layout === "billboard") {
-        const lines = chunkLines(scene.words, 3);
+        const lines = scene.lines?.length ? scene.lines : chunkLines(scene.words, 3);
         lines.forEach((line, li) => {
           const row = document.createElement("div");
           row.className = `kinetic-comp__row is-line-${li}`;
-          line.forEach((w) => row.appendChild(makeWord(w, w.index, li === 0 ? "display" : "body")));
+          line.forEach((w) =>
+            row.appendChild(
+              makeWord(w, w.index, heroes.has(w.index) || li === 0 ? "display" : "body")
+            )
+          );
           shell.appendChild(row);
         });
       } else if (scene.layout === "counterWeight") {
@@ -249,7 +195,7 @@
         const right = document.createElement("div");
         right.className = "kinetic-comp__punch";
         scene.words.slice(mid).forEach((w) =>
-          right.appendChild(makeWord(w, w.index, w.index === scene.hero ? "hero" : "punch"))
+          right.appendChild(makeWord(w, w.index, heroes.has(w.index) ? "hero" : "punch"))
         );
         shell.classList.add("is-split");
         shell.appendChild(left);
@@ -393,9 +339,14 @@
       camera.style.filter = camBlur > 0.4 ? `blur(${camBlur}px)` : "none";
       camera.style.opacity = String(clamp(live * 1.05, 0, 1));
 
+      const heroes = scene.heroes instanceof Set ? scene.heroes : new Set([scene.hero]);
       const heroPulse =
         layout === "pulseFocus"
-          ? Math.floor((phase === "hold" ? u : phase === "exit" ? 1 : 0) * Math.max(1, scene.words.length))
+          ? (() => {
+              if (phase === "enter") return [...heroes][0] ?? scene.hero ?? 0;
+              const travel = Math.floor((phase === "hold" ? u : 1) * Math.max(1, scene.words.length));
+              return heroes.has(travel) ? travel : travel;
+            })()
           : -1;
 
       for (const node of state.nodes) {
@@ -550,11 +501,17 @@
     }
 
     return {
-      load(text, { preset = "smooth-reveal", wpm = 130 } = {}) {
+      load(textOrPlan, { preset = "smooth-reveal", wpm = 130 } = {}) {
         state.preset = preset;
         state.wpm = wpm;
-        state._raw = text;
-        state.scenes = buildScenes(text, preset);
+        if (typeof textOrPlan === "string") {
+          state._raw = textOrPlan;
+          state.planSource = "heuristic";
+        } else if (textOrPlan && typeof textOrPlan === "object") {
+          if (textOrPlan._raw) state._raw = textOrPlan._raw;
+          state.planSource = textOrPlan.source || "plan";
+        }
+        state.scenes = resolveScenes(textOrPlan, preset);
         state.index = 0;
         state.playing = false;
         if (state.raf) cancelAnimationFrame(state.raf);
@@ -563,13 +520,23 @@
         else clearScene();
         emit();
       },
+      loadPlan(plan, { preset = "smooth-reveal", wpm = 130, raw } = {}) {
+        if (raw) state._raw = raw;
+        return this.load(
+          { ...plan, source: plan.source || "llm", _raw: state._raw || raw },
+          { preset, wpm }
+        );
+      },
       setPreset(preset) {
         state.preset = preset;
         if (!state._raw) return;
         const ratio = state.scenes.length
           ? state.index / Math.max(1, state.scenes.length)
           : 0;
-        state.scenes = buildScenes(state._raw, preset);
+        // LLM plans keep their cuts/emphasis; heuristic packs re-cycle layouts.
+        if (state.planSource !== "llm") {
+          state.scenes = resolveScenes(state._raw, preset);
+        }
         state.index = clamp(
           Math.floor(ratio * state.scenes.length),
           0,
@@ -577,6 +544,7 @@
         );
         if (state.scenes.length) mountScene(state.index);
       },
+      planSource: () => state.planSource || "heuristic",
       setWpm(wpm) {
         state.wpm = wpm;
         if (state.scenes[state.index]) {
@@ -627,6 +595,7 @@
 
   window.ReadRadKinetic = {
     createPlayer,
-    splitSentences: (t) => buildScenes(t, "smooth-reveal").map((s) => s.text),
+    splitSentences: (t) =>
+      resolveScenes(t, "smooth-reveal").map((s) => s.text),
   };
 })();
