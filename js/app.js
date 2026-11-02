@@ -126,7 +126,7 @@ Try this with an article you have been putting off, a chapter you want to finish
       : null;
 
   const state = {
-    mode: "lens",
+    mode: "kinetic",
     kineticPreset: "smooth-reveal",
     kineticPrefs: window.ReadRadKineticPrefs?.load?.() || {},
     kineticPlanAbort: null,
@@ -1664,19 +1664,72 @@ Try this with an article you have been putting off, a chapter you want to finish
     }
   });
 
-  els.fileInput.addEventListener("change", async () => {
-    const file = els.fileInput.files?.[0];
+  function baseTitleFromFile(name) {
+    return String(name || "Book").replace(/\.(txt|md|text|pdf)$/i, "");
+  }
+
+  function setLandingHint(htmlOrText, { html = false } = {}) {
+    if (!els.landingSettingsHint) return;
+    els.landingSettingsHint.hidden = false;
+    if (html) els.landingSettingsHint.innerHTML = htmlOrText;
+    else els.landingSettingsHint.textContent = htmlOrText;
+  }
+
+  async function ingestUploadedFile(file) {
     if (!file) return;
-    const text = await file.text();
+    const Pdf = window.ReadRadPdf;
+    const isPdf = Pdf?.isPdfFile(file);
+    let text = "";
+
+    if (isPdf) {
+      if (!Pdf) throw new Error("PDF support failed to load");
+      setLandingHint("Reading PDF…");
+      els.startBtn.disabled = true;
+      text = await Pdf.extractText(file, {
+        onProgress(done, total) {
+          setLandingHint(`Reading PDF… ${done}/${total} pages`);
+        },
+      });
+      if (!text.trim()) throw new Error("No extractable text in this PDF (it may be scanned images)");
+    } else {
+      text = await file.text();
+    }
+
     els.textInput.value = text;
     if (state.mode === "kinetic") {
-      setBookFromText(text, { sourceName: file.name, title: file.name.replace(/\.txt$/i, "") });
+      const book = setBookFromText(text, {
+        sourceName: file.name,
+        title: baseTitleFromFile(file.name),
+      });
+      if (isPdf) {
+        setLandingHint(
+          book?.chapterCount
+            ? `PDF loaded · ${book.chapterCount} chapters · open <strong>Contents</strong> after Enter`
+            : "PDF loaded · text extracted · Enter to read",
+          { html: true }
+        );
+      } else if (els.landingSettingsHint && state.mode === "kinetic") {
+        els.landingSettingsHint.hidden = false;
+      }
     } else {
       state.book = null;
+      if (isPdf) setLandingHint("PDF loaded · text extracted");
     }
     syncStartEnabled();
-    els.fileInput.value = "";
     applyModeChrome();
+  }
+
+  els.fileInput.addEventListener("change", async () => {
+    const file = els.fileInput.files?.[0];
+    els.fileInput.value = "";
+    if (!file) return;
+    try {
+      await ingestUploadedFile(file);
+    } catch (err) {
+      console.warn(err);
+      setLandingHint(err?.message || "Could not read that file");
+      syncStartEnabled();
+    }
   });
 
   els.bookNavBtn?.addEventListener("click", openBookNav);
@@ -1856,13 +1909,13 @@ Try this with an article you have been putting off, a chapter you want to finish
     if (els.landing.hidden) return;
     const file = e.dataTransfer?.files?.[0];
     if (!file) return;
-    const text = await file.text();
-    els.textInput.value = text;
-    if (state.mode === "kinetic") {
-      setBookFromText(text, { sourceName: file.name, title: file.name.replace(/\.txt$/i, "") });
+    try {
+      await ingestUploadedFile(file);
+    } catch (err) {
+      console.warn(err);
+      setLandingHint(err?.message || "Could not read that file");
+      syncStartEnabled();
     }
-    syncStartEnabled();
-    applyModeChrome();
   });
 
   let resizeTimer = 0;
@@ -1871,8 +1924,8 @@ Try this with an article you have been putting off, a chapter you want to finish
     resizeTimer = window.setTimeout(relayout, 120);
   });
 
-  // Init defaults
-  applyModeChrome();
+  // Init defaults — Kinetic is the default reading mode
+  setMode("kinetic");
   syncKineticLlmUi();
   state.wpm = Number(els.wpmRange.value);
   state.magFine = Number(els.magRange.value) / 100;

@@ -45,22 +45,22 @@
         <span class="logo__core"></span>
       </div>
       <h1 class="brand">ReadRad</h1>
-      <p class="tagline" id="landingTagline">Keep your eyes still. Let the page move through the lens.</p>
+      <p class="tagline" id="landingTagline">Cinematic kinetic type — full lines, deliberate motion.</p>
     </header>
 
     <div class="mode-switch" role="tablist" aria-label="Reading mode">
-      <button type="button" class="mode-switch__btn is-active" role="tab" id="modeLens" data-mode="lens" aria-selected="true">Lens</button>
-      <button type="button" class="mode-switch__btn" role="tab" id="modeKinetic" data-mode="kinetic" aria-selected="false">Kinetic</button>
+      <button type="button" class="mode-switch__btn" role="tab" id="modeLens" data-mode="lens" aria-selected="false">Lens</button>
+      <button type="button" class="mode-switch__btn is-active" role="tab" id="modeKinetic" data-mode="kinetic" aria-selected="true">Kinetic</button>
     </div>
 
     <div class="landing__stage">
-      <div class="demo-lens" id="demoLens" aria-hidden="true">
+      <div class="demo-lens" id="demoLens" hidden aria-hidden="true">
         <div class="demo-lens__rim"></div>
         <div class="demo-lens__glass">
           <span class="demo-lens__word" id="demoWord">focus</span>
         </div>
       </div>
-      <div class="demo-kinetic" id="demoKinetic" hidden aria-hidden="true">
+      <div class="demo-kinetic" id="demoKinetic" aria-hidden="true">
         <span class="demo-kinetic__word">motion</span>
       </div>
     </div>
@@ -72,22 +72,22 @@
           id="textInput"
           class="field__textarea"
           rows="5"
-          placeholder="Drop a chapter, article, email, or notes here…"
+          placeholder="Paste text, or upload a .txt / .pdf…"
           spellcheck="false"
         ></textarea>
       </label>
 
       <div class="landing__row">
         <label class="btn btn--ghost file-btn">
-          <input type="file" id="fileInput" accept=".txt,.md,.text,text/plain" hidden />
+          <input type="file" id="fileInput" accept=".txt,.md,.text,.pdf,text/plain,application/pdf" hidden />
           <span>Upload</span>
         </label>
         <button type="button" class="btn btn--ghost" id="sampleBtn">Sample</button>
-        <button type="button" class="btn btn--ghost" id="sampleBookBtn" hidden>Sample book</button>
-        <button type="button" class="btn btn--ghost" id="landingSettingsBtn" hidden>Customize</button>
-        <button type="button" class="btn btn--primary" id="startBtn" disabled>Enter lens</button>
+        <button type="button" class="btn btn--ghost" id="sampleBookBtn">Sample book</button>
+        <button type="button" class="btn btn--ghost" id="landingSettingsBtn">Customize</button>
+        <button type="button" class="btn btn--primary" id="startBtn" disabled>Enter kinetic</button>
       </div>
-      <p class="landing__settings-hint" id="landingSettingsHint" hidden>
+      <p class="landing__settings-hint" id="landingSettingsHint">
         Theme, type, arrangement &amp; motion live in <strong>Customize</strong>
       </p>
     </div>
@@ -183,7 +183,7 @@
       <div class="book-nav__head">
         <div>
           <h2 class="settings__title" id="bookNavTitle">Contents</h2>
-          <p class="book-nav__meta" id="bookNavMeta">Upload a .txt book to browse chapters</p>
+          <p class="book-nav__meta" id="bookNavMeta">Upload a .txt or .pdf book to browse chapters</p>
         </div>
         <button type="button" class="btn btn--ghost btn--sm" id="bookNavClose">Close</button>
       </div>
@@ -409,10 +409,11 @@
       <button type="button" class="btn btn--primary settings__close" id="settingsClose">Done</button>
     </aside>
 
-  <script src="js/book.js?v=16"></script>
-  <script src="js/kinetic-prefs.js?v=16"></script>
-  <script src="js/kinetic-plan.js?v=16"></script>
-  <script src="js/kinetic.js?v=16"></script>
-  <script src="js/app.js?v=16"></script>
+  <script src="js/book.js?v=18"></script>
+  <script src="js/pdf-text.js?v=18"></script>
+  <script src="js/kinetic-prefs.js?v=18"></script>
+  <script src="js/kinetic-plan.js?v=18"></script>
+  <script src="js/kinetic.js?v=18"></script>
+  <script src="js/app.js?v=18"></script>
 </body>
 </html>
