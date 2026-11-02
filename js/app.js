@@ -1473,12 +1473,6 @@ Try this with an article you have been putting off, a chapter you want to finish
       { rebuild: true, previewMotion: true }
     );
   });
-  els.kineticStyleSettings?.addEventListener("change", () => {
-    updateKineticPrefs(
-      { preset: els.kineticStyleSettings.value },
-      { rebuild: true, previewMotion: true }
-    );
-  });
 
   els.kineticLlmToggle?.addEventListener("change", () => {
     persistKineticLlmUi();
