@@ -86,6 +86,13 @@ Try this with an article you have been putting off, a chapter you want to finish
     landingSettingsHint: document.getElementById("landingSettingsHint"),
     dockSettingsBtn: document.getElementById("dockSettingsBtn"),
     kineticTheme: document.getElementById("kineticTheme"),
+    kineticThemeSwatches: document.getElementById("kineticThemeSwatches"),
+    kineticArrangeChoices: document.getElementById("kineticArrangeChoices"),
+    kineticPreviewStage: document.getElementById("kineticPreviewStage"),
+    kineticPreviewCamera: document.getElementById("kineticPreviewCamera"),
+    kineticPreviewComp: document.getElementById("kineticPreviewComp"),
+    kineticPreviewCaption: document.getElementById("kineticPreviewCaption"),
+    kineticPreviewTip: document.getElementById("kineticPreviewTip"),
     kineticFont: document.getElementById("kineticFont"),
     kineticFontScale: document.getElementById("kineticFontScale"),
     kineticFontScaleValue: document.getElementById("kineticFontScaleValue"),
@@ -831,6 +838,100 @@ Try this with an article you have been putting off, a chapter you want to finish
     updateKineticPrefs({ preset });
   }
 
+  function syncChoiceGroup(root, attr, value) {
+    if (!root) return;
+    root.querySelectorAll(`[${attr}]`).forEach((btn) => {
+      const on = btn.getAttribute(attr) === value;
+      btn.classList.toggle("is-active", on);
+      btn.setAttribute("aria-checked", on ? "true" : "false");
+    });
+  }
+
+  function kineticPreviewCopy(prefs) {
+    const n = Number(prefs.phrasesPerSlide) || 1;
+    if (n >= 3) {
+      return {
+        lines: ["Keep your eyes still", "and let the page move", "through quiet focus."],
+        hero: "focus",
+        support: "through quiet attention",
+        aside: "Keep your eyes",
+        punch: "still & clear",
+        tip: "3 phrases share one denser slide",
+      };
+    }
+    if (n === 2) {
+      return {
+        lines: ["Keep your eyes still.", "Let the words arrive."],
+        hero: "still",
+        support: "Let the words arrive",
+        aside: "Keep your eyes",
+        punch: "still",
+        tip: "2 phrases paired on one slide",
+      };
+    }
+    return {
+      lines: ["Keep your eyes still"],
+      hero: "still",
+      support: "Keep your eyes",
+      aside: "Keep your",
+      punch: "eyes still",
+      tip: "1 phrase per slide — tighter cuts",
+    };
+  }
+
+  function renderKineticPreview({ playMotion = false } = {}) {
+    const Prefs = window.ReadRadKineticPrefs;
+    const p = state.kineticPrefs || Prefs?.load?.() || {};
+    if (!els.kineticPreviewComp || !els.kineticPreviewStage) return;
+
+    Prefs?.applyToStage?.(els.kineticPreviewStage, p);
+    Prefs?.applyToStage?.(els.kineticStage, p);
+
+    const fontLabel = Prefs?.FONTS?.[p.font]?.label || p.font;
+    const themeLabel = Prefs?.THEMES?.[p.theme]?.label || p.theme;
+    const arrLabel = Prefs?.ARRANGEMENTS?.[p.arrangement]?.label || p.arrangement;
+    const transLabel = Prefs?.TRANSITIONS?.[p.transition]?.label || p.transition;
+    if (els.kineticPreviewCaption) {
+      els.kineticPreviewCaption.textContent = `${themeLabel} · ${fontLabel}`;
+    }
+
+    const copy = kineticPreviewCopy(p);
+    if (els.kineticPreviewTip) {
+      els.kineticPreviewTip.textContent = `${arrLabel} · ${transLabel} · ${copy.tip}`;
+    }
+
+    const comp = els.kineticPreviewComp;
+    comp.className = `k-preview__comp is-${p.arrangement || "balanced"}`;
+    let html = "";
+    if (p.arrangement === "hero") {
+      html = `<span class="k-preview__support">${copy.support}</span><span class="k-preview__hero">${copy.hero}</span>`;
+    } else if (p.arrangement === "split") {
+      html = `<div class="k-preview__split"><span class="k-preview__split-aside">${copy.aside}</span><span class="k-preview__split-punch">${copy.punch}</span></div>`;
+    } else {
+      html = copy.lines
+        .map(
+          (line, i) =>
+            `<span class="k-preview__line ${i === 0 ? "k-preview__line--display" : "k-preview__line--body"}">${line}</span>`
+        )
+        .join("");
+    }
+    comp.innerHTML = html;
+
+    if (playMotion && els.kineticPreviewCamera) {
+      const cam = els.kineticPreviewCamera;
+      const cls = `is-anim-${p.transition || "fade-rise"}`;
+      cam.classList.remove(
+        "is-anim-fade-rise",
+        "is-anim-soft-blur",
+        "is-anim-blade",
+        "is-anim-scale",
+        "is-anim-push"
+      );
+      void cam.offsetWidth;
+      cam.classList.add(cls);
+    }
+  }
+
   function syncKineticPrefsUi() {
     const Prefs = window.ReadRadKineticPrefs;
     if (!Prefs) return;
@@ -846,14 +947,18 @@ Try this with an article you have been putting off, a chapter you want to finish
     if (els.kineticTransition) els.kineticTransition.value = p.transition;
     if (els.kineticStyleSelect) els.kineticStyleSelect.value = p.preset;
     if (els.kineticStyleSettings) els.kineticStyleSettings.value = p.preset;
+    syncChoiceGroup(els.kineticThemeSwatches, "data-theme", p.theme);
+    syncChoiceGroup(els.kineticArrangeChoices, "data-arrangement", p.arrangement);
     Prefs.applyToStage(els.kineticStage, p);
+    renderKineticPreview({ playMotion: false });
   }
 
-  function updateKineticPrefs(partial, { rebuild = true } = {}) {
+  function updateKineticPrefs(partial, { rebuild = true, previewMotion = false } = {}) {
     const Prefs = window.ReadRadKineticPrefs;
     state.kineticPrefs = Prefs ? Prefs.save(partial) : { ...state.kineticPrefs, ...partial };
     state.kineticPreset = state.kineticPrefs.preset;
     syncKineticPrefsUi();
+    if (previewMotion) renderKineticPreview({ playMotion: true });
     if (!els.reader.hidden && state.mode === "kinetic") {
       kineticPlayer?.setPrefs(state.kineticPrefs, { rebuild });
     }
@@ -1327,10 +1432,23 @@ Try this with an article you have been putting off, a chapter you want to finish
     onKineticStyleInput(els.kineticStyleSettings.value);
   });
   els.kineticTheme?.addEventListener("change", () => {
-    updateKineticPrefs({ theme: els.kineticTheme.value }, { rebuild: false });
+    updateKineticPrefs({ theme: els.kineticTheme.value }, { rebuild: false, previewMotion: true });
+  });
+  els.kineticThemeSwatches?.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-theme]");
+    if (!btn) return;
+    updateKineticPrefs({ theme: btn.getAttribute("data-theme") }, { rebuild: false, previewMotion: true });
+  });
+  els.kineticArrangeChoices?.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-arrangement]");
+    if (!btn) return;
+    updateKineticPrefs(
+      { arrangement: btn.getAttribute("data-arrangement") },
+      { rebuild: true, previewMotion: true }
+    );
   });
   els.kineticFont?.addEventListener("change", () => {
-    updateKineticPrefs({ font: els.kineticFont.value }, { rebuild: false });
+    updateKineticPrefs({ font: els.kineticFont.value }, { rebuild: false, previewMotion: true });
   });
   els.kineticFontScale?.addEventListener("input", () => {
     const fontScale = Number(els.kineticFontScale.value);
@@ -1338,13 +1456,28 @@ Try this with an article you have been putting off, a chapter you want to finish
     updateKineticPrefs({ fontScale }, { rebuild: false });
   });
   els.kineticPhrasesPerSlide?.addEventListener("change", () => {
-    updateKineticPrefs({ phrasesPerSlide: Number(els.kineticPhrasesPerSlide.value) });
+    updateKineticPrefs(
+      { phrasesPerSlide: Number(els.kineticPhrasesPerSlide.value) },
+      { rebuild: true, previewMotion: true }
+    );
   });
   els.kineticArrangement?.addEventListener("change", () => {
-    updateKineticPrefs({ arrangement: els.kineticArrangement.value });
+    updateKineticPrefs(
+      { arrangement: els.kineticArrangement.value },
+      { rebuild: true, previewMotion: true }
+    );
   });
   els.kineticTransition?.addEventListener("change", () => {
-    updateKineticPrefs({ transition: els.kineticTransition.value });
+    updateKineticPrefs(
+      { transition: els.kineticTransition.value },
+      { rebuild: true, previewMotion: true }
+    );
+  });
+  els.kineticStyleSettings?.addEventListener("change", () => {
+    updateKineticPrefs(
+      { preset: els.kineticStyleSettings.value },
+      { rebuild: true, previewMotion: true }
+    );
   });
 
   els.kineticLlmToggle?.addEventListener("change", () => {
@@ -1451,6 +1584,11 @@ Try this with an article you have been putting off, a chapter you want to finish
   function openSettings() {
     applyModeChrome();
     els.settingsPanel.hidden = false;
+    if (state.mode === "kinetic") {
+      renderKineticPreview({ playMotion: true });
+      // Keep preview in view at the top of the sheet
+      els.settingsPanel.scrollTop = 0;
+    }
   }
   function toggleSettings() {
     if (els.settingsPanel.hidden) openSettings();

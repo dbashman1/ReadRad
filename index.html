@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Figtree:wght@400;500;600;700&family=Instrument+Sans:wght@400;500;600;700&family=Literata:opsz,wght@7..72,400;7..72,500;7..72,600;7..72,700&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600;6..72,700&family=Syne:wght@500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/styles.css?v=14" />
+  <link rel="stylesheet" href="css/styles.css?v=15" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%230a0a0b'/%3E%3Ccircle cx='16' cy='16' r='7.5' fill='none' stroke='%236eb5ff' stroke-width='2'/%3E%3Ccircle cx='16' cy='16' r='2.5' fill='%236eb5ff'/%3E%3C/svg%3E" />
   <script>
     (function () {
@@ -193,11 +193,32 @@
       </label>
 
       <div class="settings__section settings__kinetic-only" hidden>
-        <h3 class="settings__subtitle">Kinetic reading</h3>
+        <div class="k-preview" id="kineticPreview">
+          <div class="k-preview__bar">
+            <span class="k-preview__label">Live preview</span>
+            <span class="k-preview__caption" id="kineticPreviewCaption">Noir · Instrument</span>
+          </div>
+          <div class="k-preview__stage kinetic-stage" id="kineticPreviewStage" data-kinetic-theme="noir">
+            <div class="k-preview__camera" id="kineticPreviewCamera">
+              <div class="k-preview__comp" id="kineticPreviewComp"></div>
+            </div>
+          </div>
+          <p class="k-preview__tip" id="kineticPreviewTip">Changes update here instantly</p>
+        </div>
 
-        <label class="settings__row">
-          <span>Theme</span>
-          <select id="kineticTheme">
+        <h3 class="settings__subtitle">Look</h3>
+
+        <div class="settings__block">
+          <span class="settings__block-label">Theme</span>
+          <div class="choice-grid choice-grid--themes" id="kineticThemeSwatches" role="radiogroup" aria-label="Theme">
+            <button type="button" class="theme-swatch is-active" data-theme="noir" role="radio" aria-checked="true"><span>Noir</span></button>
+            <button type="button" class="theme-swatch" data-theme="paper" role="radio" aria-checked="false"><span>Paper</span></button>
+            <button type="button" class="theme-swatch" data-theme="aurora" role="radio" aria-checked="false"><span>Aurora</span></button>
+            <button type="button" class="theme-swatch" data-theme="studio" role="radio" aria-checked="false"><span>Studio</span></button>
+            <button type="button" class="theme-swatch" data-theme="ink" role="radio" aria-checked="false"><span>Ink</span></button>
+            <button type="button" class="theme-swatch" data-theme="signal" role="radio" aria-checked="false"><span>Signal</span></button>
+          </div>
+          <select id="kineticTheme" class="is-visually-hidden" aria-hidden="true" tabindex="-1">
             <option value="noir" selected>Noir</option>
             <option value="paper">Paper</option>
             <option value="aurora">Aurora</option>
@@ -205,7 +226,7 @@
             <option value="ink">Ink</option>
             <option value="signal">Signal</option>
           </select>
-        </label>
+        </div>
 
         <label class="settings__row">
           <span>Typeface</span>
@@ -227,6 +248,8 @@
           </div>
         </label>
 
+        <h3 class="settings__subtitle">Structure</h3>
+
         <label class="settings__row">
           <span>Phrases / slide</span>
           <select id="kineticPhrasesPerSlide">
@@ -236,16 +259,40 @@
           </select>
         </label>
 
-        <label class="settings__row">
-          <span>Arrangement</span>
-          <select id="kineticArrangement">
+        <div class="settings__block">
+          <span class="settings__block-label">Arrangement</span>
+          <div class="choice-grid choice-grid--arrange" id="kineticArrangeChoices" role="radiogroup" aria-label="Arrangement">
+            <button type="button" class="choice-chip is-active" data-arrangement="balanced" role="radio" aria-checked="true">
+              <span class="choice-chip__glyph" aria-hidden="true">≡</span>
+              <span>Balanced</span>
+            </button>
+            <button type="button" class="choice-chip" data-arrangement="left" role="radio" aria-checked="false">
+              <span class="choice-chip__glyph" aria-hidden="true">⫷</span>
+              <span>Left</span>
+            </button>
+            <button type="button" class="choice-chip" data-arrangement="center" role="radio" aria-checked="false">
+              <span class="choice-chip__glyph" aria-hidden="true">☰</span>
+              <span>Center</span>
+            </button>
+            <button type="button" class="choice-chip" data-arrangement="hero" role="radio" aria-checked="false">
+              <span class="choice-chip__glyph" aria-hidden="true">A</span>
+              <span>Hero</span>
+            </button>
+            <button type="button" class="choice-chip" data-arrangement="split" role="radio" aria-checked="false">
+              <span class="choice-chip__glyph" aria-hidden="true">.split</span>
+              <span>Split</span>
+            </button>
+          </div>
+          <select id="kineticArrangement" class="is-visually-hidden" aria-hidden="true" tabindex="-1">
             <option value="balanced" selected>Balanced lines</option>
             <option value="left">Flush left</option>
             <option value="center">Centered</option>
             <option value="hero">Hero word</option>
             <option value="split">Split weight</option>
           </select>
-        </label>
+        </div>
+
+        <h3 class="settings__subtitle">Motion</h3>
 
         <label class="settings__row">
           <span>Transition</span>
@@ -334,9 +381,9 @@
       <button type="button" class="btn btn--primary settings__close" id="settingsClose">Done</button>
     </aside>
 
-  <script src="js/kinetic-prefs.js?v=14"></script>
-  <script src="js/kinetic-plan.js?v=14"></script>
-  <script src="js/kinetic.js?v=14"></script>
-  <script src="js/app.js?v=14"></script>
+  <script src="js/kinetic-prefs.js?v=15"></script>
+  <script src="js/kinetic-plan.js?v=15"></script>
+  <script src="js/kinetic.js?v=15"></script>
+  <script src="js/app.js?v=15"></script>
 </body>
 </html>
