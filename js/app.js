@@ -34,8 +34,21 @@ Try this with an article you have been putting off, a chapter you want to finish
     textInput: document.getElementById("textInput"),
     fileInput: document.getElementById("fileInput"),
     sampleBtn: document.getElementById("sampleBtn"),
+    sampleBookBtn: document.getElementById("sampleBookBtn"),
     startBtn: document.getElementById("startBtn"),
     exitBtn: document.getElementById("exitBtn"),
+    bookNavBtn: document.getElementById("bookNavBtn"),
+    bookNavPanel: document.getElementById("bookNavPanel"),
+    bookNavClose: document.getElementById("bookNavClose"),
+    bookNavTitle: document.getElementById("bookNavTitle"),
+    bookNavMeta: document.getElementById("bookNavMeta"),
+    bookChapterList: document.getElementById("bookChapterList"),
+    bookPageList: document.getElementById("bookPageList"),
+    bookPageHeading: document.getElementById("bookPageHeading"),
+    bookPageHint: document.getElementById("bookPageHint"),
+    bookPrevChapter: document.getElementById("bookPrevChapter"),
+    bookNextChapter: document.getElementById("bookNextChapter"),
+    bookStartHere: document.getElementById("bookStartHere"),
     playBtn: document.getElementById("playBtn"),
     restartBtn: document.getElementById("restartBtn"),
     wpmRange: document.getElementById("wpmRange"),
@@ -117,6 +130,9 @@ Try this with an article you have been putting off, a chapter you want to finish
     kineticPreset: "smooth-reveal",
     kineticPrefs: window.ReadRadKineticPrefs?.load?.() || {},
     kineticPlanAbort: null,
+    book: null,
+    bookChapterId: 0,
+    bookPageIndex: 0,
     words: [],
     syllables: [],
     letters: [],
@@ -809,6 +825,8 @@ Try this with an article you have been putting off, a chapter you want to finish
     els.startBtn.textContent = kinetic ? "Enter kinetic" : "Enter lens";
     if (els.landingSettingsBtn) els.landingSettingsBtn.hidden = !kinetic;
     if (els.landingSettingsHint) els.landingSettingsHint.hidden = !kinetic;
+    if (els.sampleBookBtn) els.sampleBookBtn.hidden = !kinetic;
+    if (els.bookNavBtn) els.bookNavBtn.hidden = !(kinetic && state.book);
 
     if (els.lensDockControl) els.lensDockControl.hidden = kinetic;
     if (els.kineticDockControl) els.kineticDockControl.hidden = !kinetic;
@@ -1102,6 +1120,124 @@ Try this with an article you have been putting off, a chapter you want to finish
 
   /* ---------- screens ---------- */
 
+  function setBookFromText(text, meta = {}) {
+    const Book = window.ReadRadBook;
+    if (!Book) {
+      state.book = null;
+      return null;
+    }
+    state.book = Book.parseBook(text, meta);
+    state.bookChapterId = state.book.chapters[0]?.id ?? 0;
+    state.bookPageIndex = 0;
+    if (els.bookNavBtn) els.bookNavBtn.hidden = !(state.mode === "kinetic" && state.book);
+    return state.book;
+  }
+
+  function currentBookSlice() {
+    if (!state.book) return state.rawText || els.textInput.value;
+    const loc = window.ReadRadBook.locate(state.book, state.bookChapterId, state.bookPageIndex);
+    if (!loc) return state.book.raw;
+    // From selected page to end of chapter (natural reading continuation)
+    const pages = loc.chapter.pages.slice(loc.pageIndex);
+    return pages.map((p) => p.text).join(" ");
+  }
+
+  function renderBookNav() {
+    const book = state.book;
+    if (!book || !els.bookChapterList || !els.bookPageList) return;
+    if (els.bookNavTitle) els.bookNavTitle.textContent = book.title || "Contents";
+    if (els.bookNavMeta) {
+      els.bookNavMeta.textContent = `${book.chapterCount} chapters · ${book.pageCount} pages${
+        book.sourceName ? ` · ${book.sourceName}` : ""
+      }`;
+    }
+
+    els.bookChapterList.innerHTML = "";
+    book.chapters.forEach((ch, i) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = `book-chapter${ch.id === state.bookChapterId ? " is-active" : ""}`;
+      btn.setAttribute("role", "option");
+      btn.innerHTML = `<span class="book-chapter__index">Chapter ${i + 1}</span>${escapeHtml(ch.title)}`;
+      btn.addEventListener("click", () => {
+        state.bookChapterId = ch.id;
+        state.bookPageIndex = 0;
+        renderBookNav();
+      });
+      els.bookChapterList.appendChild(btn);
+    });
+
+    const chapter = book.chapters.find((c) => c.id === state.bookChapterId) || book.chapters[0];
+    if (els.bookPageHeading) els.bookPageHeading.textContent = chapter?.title || "Pages";
+    if (els.bookPageHint) {
+      els.bookPageHint.textContent = chapter
+        ? `${chapter.pages.length} pages · ~${window.ReadRadBook.PAGE_WORDS} words each`
+        : "";
+    }
+    els.bookPageList.innerHTML = "";
+    (chapter?.pages || []).forEach((page) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = `book-page${page.index === state.bookPageIndex ? " is-active" : ""}`;
+      btn.textContent = String(page.index + 1);
+      btn.title = `Page ${page.index + 1}`;
+      btn.addEventListener("click", () => {
+        state.bookPageIndex = page.index;
+        renderBookNav();
+      });
+      els.bookPageList.appendChild(btn);
+    });
+  }
+
+  function escapeHtml(s) {
+    return String(s)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  function openBookNav() {
+    if (!state.book) return;
+    els.settingsPanel.hidden = true;
+    renderBookNav();
+    els.bookNavPanel.hidden = false;
+  }
+
+  function closeBookNav() {
+    if (els.bookNavPanel) els.bookNavPanel.hidden = true;
+  }
+
+  async function readBookFromSelection() {
+    if (!state.book) return;
+    const text = currentBookSlice();
+    closeBookNav();
+    if (els.reader.hidden) {
+      els.textInput.value = state.book.raw;
+      syncStartEnabled();
+      state.mode = "kinetic";
+      applyModeChrome();
+      await enterReader(text);
+    } else {
+      state.mode = "kinetic";
+      applyModeChrome();
+      await enterKinetic(text);
+      const ch = state.book.chapters.find((c) => c.id === state.bookChapterId);
+      els.hint.textContent = `Press space · ${ch?.title || "Chapter"} · p.${state.bookPageIndex + 1}`;
+      els.hint.classList.remove("is-faded");
+    }
+  }
+
+  function shiftBookChapter(delta) {
+    if (!state.book) return;
+    const ids = state.book.chapters.map((c) => c.id);
+    const at = Math.max(0, ids.indexOf(state.bookChapterId));
+    const next = Math.max(0, Math.min(ids.length - 1, at + delta));
+    state.bookChapterId = ids[next];
+    state.bookPageIndex = 0;
+    renderBookNav();
+  }
+
   async function enterKinetic(text) {
     const Plan = window.ReadRadKineticPlan;
     const cfg = Plan?.getLlmConfig?.() || { enabled: false };
@@ -1187,18 +1323,33 @@ Try this with an article you have been putting off, a chapter you want to finish
     if (!text) return;
 
     stop();
+    closeBookNav();
     els.landing.hidden = true;
     els.reader.hidden = false;
     document.body.classList.add("is-reading");
     els.settingsPanel.hidden = true;
     state.started = false;
     state.rawText = text;
+    // If this looks like a book and we don't already have structure, parse it
+    if (state.mode === "kinetic") {
+      const existing = state.book?.raw?.trim() === text.trim();
+      if (!existing) setBookFromText(text, { sourceName: "Uploaded text" });
+    }
     applyModeChrome();
     els.hint.classList.remove("is-faded");
 
     if (state.mode === "kinetic") {
       if (!kineticPlayer) return;
-      void enterKinetic(text);
+      const playText =
+        state.book && state.book.chapterCount
+          ? currentBookSlice()
+          : text;
+      void enterKinetic(playText).then(() => {
+        if (state.book) {
+          const ch = state.book.chapters.find((c) => c.id === state.bookChapterId);
+          els.hint.textContent = `Press space · ${ch?.title || "Chapter"} · tap Contents to jump`;
+        }
+      });
       return;
     }
 
@@ -1223,6 +1374,7 @@ Try this with an article you have been putting off, a chapter you want to finish
   function exitReader() {
     stop();
     kineticPlayer?.pause();
+    closeBookNav();
     els.reader.hidden = true;
     els.landing.hidden = false;
     document.body.classList.remove("is-reading");
@@ -1423,7 +1575,7 @@ Try this with an article you have been putting off, a chapter you want to finish
   els.modeKinetic?.addEventListener("click", () => setMode("kinetic"));
 
   function onKineticStyleInput(value) {
-    updateKineticPrefs({ preset: value });
+    updateKineticPrefs({ preset: value }, { rebuild: true, previewMotion: true });
   }
   els.kineticStyleSelect?.addEventListener("change", () => {
     onKineticStyleInput(els.kineticStyleSelect.value);
@@ -1483,16 +1635,56 @@ Try this with an article you have been putting off, a chapter you want to finish
 
   els.sampleBtn.addEventListener("click", () => {
     els.textInput.value = SAMPLE;
+    state.book = null;
     syncStartEnabled();
     els.textInput.focus();
+    applyModeChrome();
+  });
+
+  els.sampleBookBtn?.addEventListener("click", async () => {
+    try {
+      const res = await fetch("books/sample-robot-chronicles.txt");
+      const text = await res.text();
+      els.textInput.value = text;
+      setBookFromText(text, {
+        title: "The Robot Chronicles",
+        sourceName: "ReadRad sample book",
+      });
+      syncStartEnabled();
+      els.textInput.focus();
+      applyModeChrome();
+      if (els.landingSettingsHint) {
+        els.landingSettingsHint.hidden = false;
+        els.landingSettingsHint.innerHTML =
+          "Sample book loaded · open <strong>Contents</strong> after Enter to jump chapters";
+      }
+    } catch (err) {
+      console.warn(err);
+      els.hint && (els.landingSettingsHint.textContent = "Could not load sample book");
+    }
   });
 
   els.fileInput.addEventListener("change", async () => {
     const file = els.fileInput.files?.[0];
     if (!file) return;
-    els.textInput.value = await file.text();
+    const text = await file.text();
+    els.textInput.value = text;
+    if (state.mode === "kinetic") {
+      setBookFromText(text, { sourceName: file.name, title: file.name.replace(/\.txt$/i, "") });
+    } else {
+      state.book = null;
+    }
     syncStartEnabled();
     els.fileInput.value = "";
+    applyModeChrome();
+  });
+
+  els.bookNavBtn?.addEventListener("click", openBookNav);
+  els.bookNavClose?.addEventListener("click", closeBookNav);
+  els.bookPrevChapter?.addEventListener("click", () => shiftBookChapter(-1));
+  els.bookNextChapter?.addEventListener("click", () => shiftBookChapter(1));
+  els.bookStartHere?.addEventListener("click", () => {
+    void readBookFromSelection();
   });
 
   els.startBtn.addEventListener("click", () => enterReader(els.textInput.value));
@@ -1649,6 +1841,10 @@ Try this with an article you have been putting off, a chapter you want to finish
         updateCalibrateHint("Cancelled");
         return;
       }
+      if (!els.bookNavPanel?.hidden) {
+        closeBookNav();
+        return;
+      }
       if (!els.settingsPanel.hidden) els.settingsPanel.hidden = true;
       else if (!els.reader.hidden) exitReader();
     }
@@ -1660,8 +1856,13 @@ Try this with an article you have been putting off, a chapter you want to finish
     if (els.landing.hidden) return;
     const file = e.dataTransfer?.files?.[0];
     if (!file) return;
-    els.textInput.value = await file.text();
+    const text = await file.text();
+    els.textInput.value = text;
+    if (state.mode === "kinetic") {
+      setBookFromText(text, { sourceName: file.name, title: file.name.replace(/\.txt$/i, "") });
+    }
     syncStartEnabled();
+    applyModeChrome();
   });
 
   let resizeTimer = 0;

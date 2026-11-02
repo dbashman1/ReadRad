@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Figtree:wght@400;500;600;700&family=Instrument+Sans:wght@400;500;600;700&family=Literata:opsz,wght@7..72,400;7..72,500;7..72,600;7..72,700&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600;6..72,700&family=Syne:wght@500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/styles.css?v=15" />
+  <link rel="stylesheet" href="css/styles.css?v=16" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%230a0a0b'/%3E%3Ccircle cx='16' cy='16' r='7.5' fill='none' stroke='%236eb5ff' stroke-width='2'/%3E%3Ccircle cx='16' cy='16' r='2.5' fill='%236eb5ff'/%3E%3C/svg%3E" />
   <script>
     (function () {
@@ -83,6 +83,7 @@
           <span>Upload</span>
         </label>
         <button type="button" class="btn btn--ghost" id="sampleBtn">Sample</button>
+        <button type="button" class="btn btn--ghost" id="sampleBookBtn" hidden>Sample book</button>
         <button type="button" class="btn btn--ghost" id="landingSettingsBtn" hidden>Customize</button>
         <button type="button" class="btn btn--primary" id="startBtn" disabled>Enter lens</button>
       </div>
@@ -101,6 +102,7 @@
       <div class="reader__meta">
         <span class="brand brand--sm">ReadRad</span>
         <span class="pill-meta" id="progressLabel">0%</span>
+        <button type="button" class="pill-meta pill-meta--btn" id="bookNavBtn" hidden title="Chapters & pages">Contents</button>
       </div>
       <button type="button" class="btn btn--ghost btn--sm reader__settings-btn" id="settingsToggle" title="Settings" aria-label="Open settings">
         Settings
@@ -175,6 +177,32 @@
       </footer>
     </div>
   </section>
+
+    <aside class="book-nav" id="bookNavPanel" hidden>
+      <div class="settings__handle" aria-hidden="true"></div>
+      <div class="book-nav__head">
+        <div>
+          <h2 class="settings__title" id="bookNavTitle">Contents</h2>
+          <p class="book-nav__meta" id="bookNavMeta">Upload a .txt book to browse chapters</p>
+        </div>
+        <button type="button" class="btn btn--ghost btn--sm" id="bookNavClose">Close</button>
+      </div>
+      <div class="book-nav__layout">
+        <div class="book-nav__chapters" id="bookChapterList" role="listbox" aria-label="Chapters"></div>
+        <div class="book-nav__pages-wrap">
+          <div class="book-nav__pages-head">
+            <span id="bookPageHeading">Pages</span>
+            <span class="settings__hint" id="bookPageHint">Jump within chapter</span>
+          </div>
+          <div class="book-nav__pages" id="bookPageList"></div>
+          <div class="book-nav__actions">
+            <button type="button" class="btn btn--ghost btn--sm" id="bookPrevChapter">Prev chapter</button>
+            <button type="button" class="btn btn--primary btn--sm" id="bookStartHere">Read from here</button>
+            <button type="button" class="btn btn--ghost btn--sm" id="bookNextChapter">Next chapter</button>
+          </div>
+        </div>
+      </div>
+    </aside>
 
     <aside class="settings" id="settingsPanel" hidden>
       <div class="settings__handle" aria-hidden="true"></div>
@@ -381,9 +409,10 @@
       <button type="button" class="btn btn--primary settings__close" id="settingsClose">Done</button>
     </aside>
 
-  <script src="js/kinetic-prefs.js?v=15"></script>
-  <script src="js/kinetic-plan.js?v=15"></script>
-  <script src="js/kinetic.js?v=15"></script>
-  <script src="js/app.js?v=15"></script>
+  <script src="js/book.js?v=16"></script>
+  <script src="js/kinetic-prefs.js?v=16"></script>
+  <script src="js/kinetic-plan.js?v=16"></script>
+  <script src="js/kinetic.js?v=16"></script>
+  <script src="js/app.js?v=16"></script>
 </body>
 </html>
