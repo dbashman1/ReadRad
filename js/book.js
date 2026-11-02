@@ -67,7 +67,25 @@
       const prevBlank = i === 0 || !lines[i - 1].trim();
       const isExplicit = CHAPTER_RE.test(lines[i].trim()) || PART_RE.test(lines[i].trim());
       if (!isExplicit && !prevBlank) continue;
-      headings.push({ line: i, ...hit });
+      // Skip ALL-CAPS book title before any explicit CHAPTER/PART heading
+      if (!isExplicit && !headings.some((h) => CHAPTER_RE.test(lines[h.line].trim()) || PART_RE.test(lines[h.line].trim()))) {
+        const laterExplicit = lines.slice(i + 1).some((l) => CHAPTER_RE.test(l.trim()) || PART_RE.test(l.trim()));
+        if (laterExplicit) continue;
+      }
+      let title = hit.title;
+      const next = (lines[i + 1] || "").trim();
+      if (
+        isExplicit &&
+        (!title || /^chapter\b/i.test(title)) &&
+        next &&
+        next.length <= 60 &&
+        !CHAPTER_RE.test(next) &&
+        !PART_RE.test(next) &&
+        !/[.!?]$/.test(next)
+      ) {
+        title = next;
+      }
+      headings.push({ line: i, label: hit.label, title });
     }
 
     let title = meta.title || "";
