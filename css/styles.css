@@ -410,6 +410,24 @@ body.is-reading .theme-toggle {
   align-items: center;
 }
 
+.landing__settings-hint {
+  margin: 0.65rem 0 0;
+  text-align: center;
+  font-size: 0.82rem;
+  color: var(--text-2);
+  line-height: 1.35;
+}
+
+.landing__settings-hint strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.reader__settings-btn {
+  min-width: 4.75rem;
+  font-weight: 600;
+}
+
 .btn {
   display: inline-flex;
   align-items: center;

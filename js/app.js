@@ -82,6 +82,9 @@ Try this with an article you have been putting off, a chapter you want to finish
     kineticDockControl: document.getElementById("kineticDockControl"),
     kineticStyleSelect: document.getElementById("kineticStyleSelect"),
     kineticStyleSettings: document.getElementById("kineticStyleSettings"),
+    landingSettingsBtn: document.getElementById("landingSettingsBtn"),
+    landingSettingsHint: document.getElementById("landingSettingsHint"),
+    dockSettingsBtn: document.getElementById("dockSettingsBtn"),
     kineticTheme: document.getElementById("kineticTheme"),
     kineticFont: document.getElementById("kineticFont"),
     kineticFontScale: document.getElementById("kineticFontScale"),
@@ -797,6 +800,8 @@ Try this with an article you have been putting off, a chapter you want to finish
         : "Keep your eyes still. Let the page move through the lens.";
     }
     els.startBtn.textContent = kinetic ? "Enter kinetic" : "Enter lens";
+    if (els.landingSettingsBtn) els.landingSettingsBtn.hidden = !kinetic;
+    if (els.landingSettingsHint) els.landingSettingsHint.hidden = !kinetic;
 
     if (els.lensDockControl) els.lensDockControl.hidden = kinetic;
     if (els.kineticDockControl) els.kineticDockControl.hidden = !kinetic;
@@ -1443,9 +1448,17 @@ Try this with an article you have been putting off, a chapter you want to finish
     updateHighlights(state.index);
   });
 
-  els.settingsToggle.addEventListener("click", () => {
-    els.settingsPanel.hidden = !els.settingsPanel.hidden;
-  });
+  function openSettings() {
+    applyModeChrome();
+    els.settingsPanel.hidden = false;
+  }
+  function toggleSettings() {
+    if (els.settingsPanel.hidden) openSettings();
+    else els.settingsPanel.hidden = true;
+  }
+  els.settingsToggle?.addEventListener("click", toggleSettings);
+  els.landingSettingsBtn?.addEventListener("click", openSettings);
+  els.dockSettingsBtn?.addEventListener("click", openSettings);
   els.settingsClose.addEventListener("click", () => {
     els.settingsPanel.hidden = true;
   });
